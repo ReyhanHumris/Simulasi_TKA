@@ -1,4 +1,4 @@
-# TODO — Persiapkan Deploy Vercel
+ # TODO — Persiapkan Deploy Vercel
 
 - [x] 1. Bersihkan `index.html` — hapus script arena development (recording, views, element-picker)
 - [x] 2. Buat `vercel.json` — konfigurasi Vite framework + SPA rewrites
@@ -17,5 +17,6 @@
 - [x] 1. Analisis error & identifikasi baris bermasalah di `src/App.tsx`
 - [x] 2. Ubah `const fact = (n: number): number => ...` menjadi `function fact(n: number): number { ... }` (function declaration bersifat hoisted sehingga rekursi aman dari TS7023)
 - [x] 3. Ubah `const fact25 = (n: number): number => ...` menjadi `function fact25(n: number): number { ... }` (alasan sama)
+- [x] 4. Verifikasi build produksi (`npm run build`) — berhasil, `tsc -b && vite build` lolos tanpa error TS7023 (built in 3.48s)
 - [x] 4. Verifikasi build produksi (`npm run build`) — memastikan `tsc -b` lolos tanpa error TS7023
 - [ ] 5. Deploy ulang ke Vercel & konfirmasi hasil
