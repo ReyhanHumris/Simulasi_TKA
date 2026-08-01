@@ -10,6 +10,8 @@ import {
   Calculator,
   CheckCircle2,
   ClipboardList,
+  FunctionSquare,
+  History,
   Languages,
   Layers3,
   RotateCcw,
@@ -20,12 +22,20 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-const SUBJECTS = ['Matematika', 'Bahasa Indonesia', 'Bahasa Inggris'] as const
+const SUBJECTS = [
+  'Matematika',
+  'Bahasa Indonesia',
+  'Bahasa Inggris',
+  'TKA Matematika Tingkat Lanjut',
+  'Bahasa Inggris Tingkat Lanjut',
+] as const
 const PAKETS = ['Paket 1', 'Paket 2', 'Paket 3', 'Paket 4', 'Paket 5'] as const
 const DIFFICULTIES = ['Mudah', 'Sedang', 'Sulit'] as const
 const TOTAL_QUESTIONS = 40
 const QUIZ_DURATION_SECONDS = 50 * 60
+const TAB_AWAY_GRACE_SECONDS = 10
 const HISTORY_STORAGE_KEY = 'tka-session-history'
+const MAX_HISTORY_ENTRIES = 20
 
 type Subject = (typeof SUBJECTS)[number]
 type Paket = (typeof PAKETS)[number]
@@ -45,6 +55,31 @@ type Question = {
 
 type OptionSet = Pick<Question, 'options' | 'correctAnswer'>
 
+type SessionQuestionResult = {
+  questionId: string
+  stem: string
+  isCorrect: boolean
+  selectedOption?: number
+  correctOption: number
+  explanation: string
+}
+
+type SessionHistoryEntry = {
+  id: string
+  subject: Subject
+  paket: Paket
+  difficulty: Difficulty
+  score: number
+  correct: number
+  incorrect: number
+  total: number
+  answeredCount: number
+  flaggedCount: number
+  status: string
+  completedAt: string
+  questionResults: SessionQuestionResult[]
+}
+
 const subjectMeta: Record<Subject, { icon: LucideIcon; description: string; metric: string }> = {
   Matematika: {
     icon: Calculator,
@@ -60,6 +95,16 @@ const subjectMeta: Record<Subject, { icon: LucideIcon; description: string; metr
     icon: Languages,
     description: 'Kosakata, grammar, dan pemahaman teks singkat.',
     metric: '40 soal',
+  },
+  'TKA Matematika Tingkat Lanjut': {
+    icon: FunctionSquare,
+    description: 'Kalkulus, trigonometri, logaritma, dan penalaran matematika lanjut.',
+    metric: '40 soal · Mapel pilihan',
+  },
+  'Bahasa Inggris Tingkat Lanjut': {
+    icon: BookOpenCheck,
+    description: 'Grammar lanjut, academic vocabulary, dan reading comprehension.',
+    metric: '40 soal · Mapel pilihan',
   },
 }
 
@@ -142,6 +187,15 @@ const paiContexts = [
 const rotate = <T,>(items: T[], amount: number) => {
   const shift = ((amount % items.length) + items.length) % items.length
   return [...items.slice(shift), ...items.slice(0, shift)]
+}
+
+const shuffleArray = <T,>(items: T[]): T[] => {
+  const copy = [...items]
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[copy[i], copy[j]] = [copy[j], copy[i]]
+  }
+  return copy
 }
 
 const createOptionSet = (correct: string, distractors: string[], seed: number): OptionSet => {
@@ -561,6 +615,313 @@ const buildEnglishQuestion = (paketNumber: number, difficulty: Difficulty, quest
   }
 }
 
+const buildAdvancedMathQuestion = (paketNumber: number, difficulty: Difficulty, questionNumber: number) => {
+  const seed = paketNumber * 41 + questionNumber * 7
+  const variant = (questionNumber - 1) % 5
+
+  if (difficulty === 'Mudah') {
+    const mudahTemplates = [
+      () => {
+        const a = paketNumber + 3
+        const b = questionNumber + 2
+        const answer = a * a + b * b
+        return {
+          stem: `Nilai dari ${a}² + ${b}² adalah ...`,
+          ...numericOptions(answer, seed, 5),
+          explanation: `${a}² + ${b}² = ${a * a} + ${b * b} = ${answer}.`,
+        }
+      },
+      () => {
+        const base = 2 + paketNumber
+        const exp = questionNumber + 2
+        const answer = Math.pow(base, exp)
+        return {
+          stem: `Hasil dari ${base}^${exp} adalah ...`,
+          ...numericOptions(answer, seed, 8),
+          explanation: `${base}^${exp} = ${answer}.`,
+        }
+      },
+      () => {
+        const angle = 30 + paketNumber * 10
+        const answer = angle
+        return {
+          stem: `Sin ${angle}° pada segitiga siku-siku special setara dengan ... (dalam derajat sudut referensi)`,
+          ...createOptionSet(String(angle), [String(angle + 30), String(angle - 15), String(90 - angle)], seed),
+          explanation: `Sudut ${angle}° termasuk sudut trigonometri dasar yang perlu dipahami.`,
+        }
+      },
+      () => {
+        const a = 2 + paketNumber
+        const b = 3 + questionNumber
+        const answer = a + b
+        return {
+          stem: `Jika log a = ${a} dan log b = ${b}, maka log(ab) = ...`,
+          ...numericOptions(answer, seed, 2),
+          explanation: `log(ab) = log a + log b = ${a} + ${b} = ${answer}.`,
+        }
+      },
+      () => {
+        const r = 3 + paketNumber
+        const answer = Math.round(Math.PI * r * r)
+        return {
+          stem: `Luas lingkaran dengan jari-jari ${r} cm adalah ... cm² (π ≈ 3,14)`,
+          ...numericOptions(answer, seed, 4),
+          explanation: `Luas = π × r² ≈ 3,14 × ${r}² ≈ ${answer} cm².`,
+        }
+      },
+    ]
+    return mudahTemplates[variant]()
+  }
+
+  if (difficulty === 'Sedang') {
+    const sedangTemplates = [
+      () => {
+        const coeff = paketNumber + 2
+        const constant = questionNumber + 5
+        const answer = 2 * coeff
+        return {
+          stem: `Turunan pertama f(x) = ${coeff}x² + ${constant} adalah f'(x) = ...`,
+          ...createOptionSet(`${2 * coeff}x`, [`${coeff}x`, `${2 * coeff}x + ${constant}`, `${coeff}x²`], seed),
+          explanation: `Turunan ${coeff}x² adalah ${2 * coeff}x, turunan konstanta ${constant} adalah 0.`,
+        }
+      },
+      () => {
+        const a1 = paketNumber + 4
+        const d = questionNumber + 1
+        const n = 10
+        const answer = a1 + (n - 1) * d
+        return {
+          stem: `Suku ke-${n} barisan aritmetika dengan suku pertama ${a1} dan beda ${d} adalah ...`,
+          ...numericOptions(answer, seed, 3),
+          explanation: `Suku ke-n = a₁ + (n-1)d = ${a1} + 9 × ${d} = ${answer}.`,
+        }
+      },
+      () => {
+        const x = paketNumber + 5
+        const answer = x * x - 4
+        return {
+          stem: `Faktorisasi x² + ${x - 2}x - ${2 * x - 4} hasilnya (x - 2)(x + ...) = 0. Bilangan pada titik tersebut adalah ...`,
+          ...numericOptions(x, seed, 2),
+          explanation: `x² + ${x - 2}x - ${2 * x - 4} = (x - 2)(x + ${x}).`,
+        }
+      },
+      () => {
+        const opp = 3 + paketNumber
+        const adj = 4 + questionNumber
+        const answer = Math.round((opp / adj) * 100) / 100
+        return {
+          stem: `Dalam segitiga siku-siku, sisi depan ${opp} cm dan sisi samping ${adj} cm. Nilai tan θ = ...`,
+          ...createOptionSet(String(answer), [String(adj / opp), String(opp + adj), String(adj - opp)], seed),
+          explanation: `tan θ = depan/samping = ${opp}/${adj} = ${answer}.`,
+        }
+      },
+      () => {
+        const a = 1 + paketNumber
+        const b = 2 + questionNumber
+        const c = 3 + paketNumber
+        const answer = a + b + c
+        return {
+          stem: `Determinan matriks 2×2 [[${a}, ${b}], [${c}, ${a + 1}]] adalah ...`,
+          ...numericOptions(a * (a + 1) - b * c, seed, 3),
+          explanation: `det = (${a})(${a + 1}) - (${b})(${c}) = ${a * (a + 1) - b * c}.`,
+        }
+      },
+    ]
+    return sedangTemplates[variant]()
+  }
+
+  const sulitTemplates = [
+    () => {
+      const a = paketNumber + 2
+      const b = questionNumber + 3
+      const sum = a + b
+      const product = a * b
+      return {
+        stem: `Akar persamaan kuadrat x² - ${sum}x + ${product} = 0 adalah x = ${a} dan x = ${b}. Nilai ${a}² + ${b}² = ...`,
+        ...numericOptions(a * a + b * b, seed, 6),
+        explanation: `${a}² + ${b}² = ${a * a} + ${b * b} = ${a * a + b * b}.`,
+      }
+    },
+    () => {
+      const answer = paketNumber + questionNumber + 5
+      return {
+        stem: `Integral ∫(2x + ${paketNumber}) dx = x² + ${paketNumber}x + C. Turunan dari x² + ${paketNumber}x adalah ...`,
+        ...createOptionSet(`2x + ${paketNumber}`, [`x + ${paketNumber}`, `2x`, `x² + ${paketNumber}`], seed),
+        explanation: `Turunan x² adalah 2x, turunan ${paketNumber}x adalah ${paketNumber}.`,
+      }
+    },
+    () => {
+      const n = 5 + paketNumber
+      const answer = Math.pow(2, n)
+      return {
+        stem: `Barisan geometri dengan suku pertama 2 dan rasio 2. Suku ke-${n} adalah ...`,
+        ...numericOptions(answer, seed, 16),
+        explanation: `Suku ke-n = ar^(n-1) = 2 × 2^${n - 1} = ${answer}.`,
+      }
+    },
+    () => {
+      const x = paketNumber + 4
+      const answer = 2 * x
+      return {
+        stem: `Fungsi f(x) = sin(${x}x). Nilai f'(π) jika f'(x) = ${x} cos(${x}x) adalah ... (cos(${x}π) = -1)`,
+        ...numericOptions(-x, seed, 2),
+        explanation: `f'(π) = ${x} cos(${x}π) = ${x} × (-1) = ${-x}.`,
+      }
+    },
+    () => {
+      const total = 12 + paketNumber * 2
+      const answer = Math.round((total * total) / 4)
+      return {
+        stem: `Limit lim(x→0) (sin(${total}x)/x) = ...`,
+        ...numericOptions(total, seed, 3),
+        explanation: `lim(x→0) sin(kx)/x = k, sehingga jawabannya ${total}.`,
+      }
+    },
+  ]
+  return sulitTemplates[variant]()
+}
+
+const buildAdvancedEnglishQuestion = (paketNumber: number, difficulty: Difficulty, questionNumber: number) => {
+  const seed = paketNumber * 47 + questionNumber * 3
+  const variant = (questionNumber - 1) % 5
+
+  if (difficulty === 'Mudah') {
+    const templates = [
+      {
+        stem: 'Choose the correct form: "If I ___ more time, I would review the material again."',
+        correct: 'had',
+        distractors: ['have', 'has', 'having'],
+        explanation: 'Second conditional uses "had" in the if-clause.',
+      },
+      {
+        stem: 'The word "meticulous" is closest in meaning to ...',
+        correct: 'very careful',
+        distractors: ['very lazy', 'very noisy', 'very angry'],
+        explanation: 'Meticulous means showing great attention to detail.',
+      },
+      {
+        stem: 'Choose the correct sentence.',
+        correct: 'Neither the teacher nor the students were late.',
+        distractors: ['Neither the teacher nor the students was late.', 'Neither the teacher or the students were late.', 'Neither the teacher nor the students is late.'],
+        explanation: 'With "neither...nor", the verb agrees with the nearer subject (students → were).',
+      },
+      {
+        stem: 'Complete: "The report ___ by the committee yesterday."',
+        correct: 'was reviewed',
+        distractors: ['reviewed', 'is reviewing', 'has review'],
+        explanation: 'Passive voice in past tense: was + past participle.',
+      },
+      {
+        stem: 'Which phrase correctly completes: "She insisted on ___ the instructions carefully."',
+        correct: 'reading',
+        distractors: ['read', 'to read', 'reads'],
+        explanation: 'After "insist on", use a gerund (-ing form).',
+      },
+    ]
+    const template = templates[variant]
+    return {
+      stem: template.stem,
+      ...createOptionSet(template.correct, template.distractors, seed),
+      explanation: template.explanation,
+    }
+  }
+
+  if (difficulty === 'Sedang') {
+    const templates = [
+      {
+        stem: 'Choose the best answer: "Had she studied harder, she ___ the exam."',
+        correct: 'would have passed',
+        distractors: ['will pass', 'would pass', 'passed'],
+        explanation: 'Third conditional: would have + past participle.',
+      },
+      {
+        stem: 'The phrase "take something for granted" means ...',
+        correct: 'to fail to appreciate something properly',
+        distractors: ['to receive something as a gift', 'to reject an offer politely', 'to ask for permission first'],
+        explanation: 'It means not valuing something enough because it seems normal.',
+      },
+      {
+        stem: 'Which sentence uses the subjunctive mood correctly?',
+        correct: 'The principal recommended that he be present at the meeting.',
+        distractors: ['The principal recommended that he is present at the meeting.', 'The principal recommended that he was present at the meeting.', 'The principal recommended that he will be present at the meeting.'],
+        explanation: 'Subjunctive after "recommended that" uses base form "be".',
+      },
+      {
+        stem: 'Choose the correct reported speech: Direct: "I will finish the task tomorrow," he said.',
+        correct: 'He said that he would finish the task the next day.',
+        distractors: ['He said that he will finish the task tomorrow.', 'He said that he would finish the task tomorrow.', 'He said that I would finish the task the next day.'],
+        explanation: 'Will → would, tomorrow → the next day in reported speech.',
+      },
+      {
+        stem: 'Identify the word with the correct academic collocation: "conduct a ___"',
+        correct: 'study',
+        distractors: ['homework', 'subject', 'teacher'],
+        explanation: '"Conduct a study" is a standard academic collocation.',
+      },
+    ]
+    const template = templates[variant]
+    return {
+      stem: template.stem,
+      ...createOptionSet(template.correct, template.distractors, seed),
+      explanation: template.explanation,
+    }
+  }
+
+  const templates = [
+    {
+      stem: 'Choose the best answer: "Not only ___ the proposal, but he also implemented it successfully."',
+      correct: 'did he approve',
+      distractors: ['he approved', 'he did approve', 'approved he'],
+      explanation: 'Inversion after "Not only" at the beginning: did + subject + base verb.',
+    },
+    {
+      stem: 'The word "ubiquitous" in academic writing most nearly means ...',
+      correct: 'present everywhere',
+      distractors: ['extremely rare', 'deliberately hidden', 'temporarily unavailable'],
+      explanation: 'Ubiquitous means found everywhere or very common.',
+    },
+    {
+      stem: 'Which sentence best expresses a concessive relationship?',
+      correct: 'Although the data were limited, the findings remained significant.',
+      distractors: ['The data were limited, so the findings were significant.', 'Because the data were limited, the findings remained significant.', 'The data were limited, and the findings remained significant.'],
+      explanation: '"Although" introduces contrast despite a limitation.',
+    },
+    {
+      stem: 'Select the option that best completes the sentence: "The experiment, ___ results were unexpected, prompted further research."',
+      correct: 'whose',
+      distractors: ['which', 'who', 'whom'],
+      explanation: 'Whose shows possession for "results of the experiment".',
+    },
+    {
+      stem: 'In the sentence "Scarcely had the exam begun when the bell rang," the structure indicates ...',
+      correct: 'an event happened immediately after another',
+      distractors: ['two events happened at the same time', 'the second event happened much earlier', 'the first event never occurred'],
+      explanation: '"Scarcely...when" emphasizes one event immediately followed another.',
+    },
+  ]
+  const template = templates[variant]
+  return {
+    stem: `${template.stem} (${questionNumber})`,
+    ...createOptionSet(template.correct, template.distractors, seed + 2),
+    explanation: template.explanation,
+  }
+}
+
+const getQuestionBuilder = (subject: Subject) => {
+  switch (subject) {
+    case 'Matematika':
+      return buildMathQuestion
+    case 'TKA Matematika Tingkat Lanjut':
+      return buildAdvancedMathQuestion
+    case 'Bahasa Indonesia':
+      return buildBahasaIndonesiaQuestion
+    case 'Bahasa Inggris':
+      return buildEnglishQuestion
+    case 'Bahasa Inggris Tingkat Lanjut':
+      return buildAdvancedEnglishQuestion
+  }
+}
+
 const generateQuestionBank = (): Question[] => {
   const bank: Question[] = []
 
@@ -569,12 +930,7 @@ const generateQuestionBank = (): Question[] => {
       DIFFICULTIES.forEach((difficulty) => {
         Array.from({ length: TOTAL_QUESTIONS }, (_, questionIndex) => {
           const questionNumber = questionIndex + 1
-          const builder =
-            subject === 'Matematika'
-              ? buildMathQuestion
-              : subject === 'Bahasa Indonesia'
-                ? buildBahasaIndonesiaQuestion
-                : buildEnglishQuestion
+          const builder = getQuestionBuilder(subject)
           const generated = builder(paketIndex + 1, difficulty, questionNumber)
 
           bank.push({
@@ -593,6 +949,23 @@ const generateQuestionBank = (): Question[] => {
 }
 
 const questionBank = generateQuestionBank()
+
+const formatCompletedAt = (isoDate: string) =>
+  new Intl.DateTimeFormat('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(isoDate))
+
+const normalizeHistoryEntry = (entry: Partial<SessionHistoryEntry> & Pick<SessionHistoryEntry, 'id' | 'subject' | 'paket' | 'difficulty' | 'score' | 'correct' | 'incorrect' | 'total' | 'completedAt'>): SessionHistoryEntry => ({
+  answeredCount: entry.answeredCount ?? 0,
+  flaggedCount: entry.flaggedCount ?? 0,
+  status: entry.status ?? 'Selesai',
+  questionResults: entry.questionResults ?? [],
+  ...entry,
+})
 
 const useWindowSize = () => {
   const [size, setSize] = useState({ width: 0, height: 0 })
@@ -622,43 +995,32 @@ function App() {
   const [answers, setAnswers] = useState<Record<string, number>>({})
   const [questionFlags, setQuestionFlags] = useState<Record<string, boolean>>({})
   const [timeLeft, setTimeLeft] = useState(QUIZ_DURATION_SECONDS)
-  const [history, setHistory] = useState<Array<{
-    id: string
-    subject: Subject
-    paket: Paket
-    difficulty: Difficulty
-    score: number
-    correct: number
-    incorrect: number
-    total: number
-    answeredCount: number
-    flaggedCount: number
-    status: string
-    completedAt: string
-  }>>([])
+  const [isQuizPaused, setIsQuizPaused] = useState(false)
+  const [sessionQuestions, setSessionQuestions] = useState<Question[]>([])
+  const [history, setHistory] = useState<SessionHistoryEntry[]>([])
   const sessionResolvedRef = useRef(false)
   const selectedSubjectRef = useRef<Subject | null>(selectedSubject)
   const selectedPaketRef = useRef<Paket | null>(selectedPaket)
   const selectedDifficultyRef = useRef<Difficulty | null>(selectedDifficulty)
   const answersRef = useRef<Record<string, number>>({})
   const questionFlagsRef = useRef<Record<string, boolean>>({})
+  const sessionQuestionsRef = useRef<Question[]>([])
+  const isQuizPausedRef = useRef(false)
+  const tabGraceTimerRef = useRef<number | null>(null)
+  const isAwaitingTabConfirmRef = useRef(false)
   const windowSize = useWindowSize()
 
-  const filteredQuestions = useMemo(
-    () =>
-      questionBank.filter(
-        (question) =>
-          question.subject === selectedSubject &&
-          question.paket === selectedPaket &&
-          question.difficulty === selectedDifficulty,
-      ),
-    [selectedDifficulty, selectedPaket, selectedSubject],
-  )
+  const clearTabGraceTimer = () => {
+    if (tabGraceTimerRef.current !== null) {
+      window.clearTimeout(tabGraceTimerRef.current)
+      tabGraceTimerRef.current = null
+    }
+  }
 
-  const currentQuestion = filteredQuestions[currentIndex]
+  const currentQuestion = sessionQuestions[currentIndex]
   const selectedAnswer = currentQuestion ? answers[currentQuestion.id] : undefined
   const isSetupComplete = Boolean(selectedSubject && selectedPaket && selectedDifficulty)
-  const progress = filteredQuestions.length ? ((currentIndex + 1) / filteredQuestions.length) * 100 : 0
+  const progress = sessionQuestions.length ? ((currentIndex + 1) / sessionQuestions.length) * 100 : 0
   const isCurrentQuestionFlagged = Boolean(currentQuestion && questionFlags[currentQuestion.id])
   const canProceed = selectedAnswer !== undefined || isCurrentQuestionFlagged
   const formatTime = (seconds: number) => {
@@ -687,13 +1049,21 @@ function App() {
     questionFlagsRef.current = questionFlags
   }, [questionFlags])
 
+  useEffect(() => {
+    sessionQuestionsRef.current = sessionQuestions
+  }, [sessionQuestions])
+
+  useEffect(() => {
+    isQuizPausedRef.current = isQuizPaused
+  }, [isQuizPaused])
+
   const result = useMemo(() => {
-    const correct = filteredQuestions.filter((question) => answers[question.id] === question.correctAnswer).length
-    const total = filteredQuestions.length
+    const correct = sessionQuestions.filter((question) => answers[question.id] === question.correctAnswer).length
+    const total = sessionQuestions.length
     const incorrect = Math.max(total - correct, 0)
     const score = total ? Math.round((correct / total) * 100) : 0
     return { correct, incorrect, total, score }
-  }, [answers, filteredQuestions])
+  }, [answers, sessionQuestions])
 
   useEffect(() => {
     if (screen !== 'quiz') return
@@ -702,6 +1072,8 @@ function App() {
 
     const timer = window.setInterval(() => {
       setTimeLeft((previousTime) => {
+        if (isQuizPausedRef.current) return previousTime
+
         if (previousTime <= 1) {
           window.clearInterval(timer)
           if (!sessionResolvedRef.current) {
@@ -724,7 +1096,8 @@ function App() {
     const savedHistory = window.localStorage.getItem(HISTORY_STORAGE_KEY)
     if (savedHistory) {
       try {
-        setHistory(JSON.parse(savedHistory))
+        const parsed = JSON.parse(savedHistory) as Partial<SessionHistoryEntry>[]
+        setHistory(parsed.map((entry) => normalizeHistoryEntry(entry as SessionHistoryEntry)))
       } catch {
         window.localStorage.removeItem(HISTORY_STORAGE_KEY)
       }
@@ -734,16 +1107,62 @@ function App() {
   useEffect(() => {
     if (typeof window === 'undefined') return
 
+    const promptTabReturnConfirmation = () => {
+      if (isAwaitingTabConfirmRef.current || sessionResolvedRef.current) return
+      isAwaitingTabConfirmRef.current = true
+
+      void Swal.fire({
+        icon: 'warning',
+        title: 'Konfirmasi lanjut ujian',
+        html: `Anda sempat meninggalkan tab ujian. Waktu untuk kembali hanya <strong>${TAB_AWAY_GRACE_SECONDS} detik</strong>.<br><br>Konfirmasi untuk melanjutkan mengerjakan soal.`,
+        showCancelButton: true,
+        confirmButtonText: 'Lanjutkan ujian',
+        cancelButtonText: 'Akhiri ujian',
+        confirmButtonColor: '#2563eb',
+        cancelButtonColor: '#dc2626',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+      }).then((result) => {
+        isAwaitingTabConfirmRef.current = false
+        if (sessionResolvedRef.current) return
+
+        if (result.isConfirmed) {
+          setIsQuizPaused(false)
+          clearTabGraceTimer()
+        } else {
+          persistSessionRecord('Ujian diakhiri setelah pindah tab')
+        }
+      })
+    }
+
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (screen !== 'quiz') return
       event.preventDefault()
       event.returnValue = ''
-      persistSessionRecord('Tab ditutup')
     }
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden' && screen === 'quiz' && !sessionResolvedRef.current) {
-        persistSessionRecord('Pindah tab / tab ditutup')
+      if (screen !== 'quiz' || sessionResolvedRef.current) return
+
+      if (document.visibilityState === 'hidden') {
+        setIsQuizPaused(true)
+        clearTabGraceTimer()
+
+        tabGraceTimerRef.current = window.setTimeout(() => {
+          tabGraceTimerRef.current = null
+          if (document.visibilityState === 'hidden' && !sessionResolvedRef.current) {
+            persistSessionRecord(`Melewati batas waktu pindah tab (${TAB_AWAY_GRACE_SECONDS} detik)`)
+          }
+        }, TAB_AWAY_GRACE_SECONDS * 1000)
+        return
+      }
+
+      if (document.visibilityState === 'visible') {
+        clearTabGraceTimer()
+
+        if (isQuizPausedRef.current && !sessionResolvedRef.current) {
+          promptTabReturnConfirmation()
+        }
       }
     }
 
@@ -753,6 +1172,7 @@ function App() {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
+      clearTabGraceTimer()
     }
   }, [screen])
 
@@ -767,11 +1187,20 @@ function App() {
 
     sessionResolvedRef.current = true
 
-    const total = filteredQuestions.length
-    const correct = filteredQuestions.filter((question) => answersRef.current[question.id] === question.correctAnswer).length
+    const total = sessionQuestionsRef.current.length
+    const correct = sessionQuestionsRef.current.filter((question) => answersRef.current[question.id] === question.correctAnswer).length
     const incorrect = Math.max(total - correct, 0)
     const score = total ? Math.round((correct / total) * 100) : 0
-    const entry = {
+    const questionResults: SessionQuestionResult[] = sessionQuestionsRef.current.map((question) => ({
+      questionId: question.id,
+      stem: question.stem,
+      isCorrect: answersRef.current[question.id] === question.correctAnswer,
+      selectedOption: answersRef.current[question.id],
+      correctOption: question.correctAnswer,
+      explanation: question.explanation,
+    }))
+
+    const entry: SessionHistoryEntry = {
       id: `${subject}-${paket}-${difficulty}-${Date.now()}`,
       subject,
       paket,
@@ -784,22 +1213,25 @@ function App() {
       flaggedCount: Object.values(questionFlagsRef.current).filter(Boolean).length,
       status,
       completedAt: new Date().toISOString(),
+      questionResults,
     }
 
-    const nextHistory = [entry, ...history].slice(0, 8)
-    setHistory(nextHistory)
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(nextHistory))
-    }
+    setHistory((previousHistory) => {
+      const nextHistory = [entry, ...previousHistory].slice(0, MAX_HISTORY_ENTRIES)
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(nextHistory))
+      }
+      return nextHistory
+    })
 
     setScreen('result')
 
-    if (status.includes('tab') || status.includes('Tab')) {
+    if (/tab|pindah/i.test(status)) {
       window.setTimeout(() => {
         Swal.fire({
           icon: 'warning',
           title: 'Sesi ujian terputus',
-          text: 'Anda pindah tab atau menutup tab. Ujian otomatis selesai dan jawaban Anda tersimpan.',
+          text: 'Anda meninggalkan tab ujian terlalu lama atau memilih mengakhiri ujian. Jawaban Anda tersimpan.',
           confirmButtonText: 'Lihat hasil',
           confirmButtonColor: '#2563eb',
         })
@@ -812,12 +1244,22 @@ function App() {
   }
 
   const startSimulation = () => {
-    if (!isSetupComplete) return
+    if (!isSetupComplete || !selectedSubject || !selectedPaket || !selectedDifficulty) return
     sessionResolvedRef.current = false
+    const questions = questionBank.filter(
+      (question) =>
+        question.subject === selectedSubject &&
+        question.paket === selectedPaket &&
+        question.difficulty === selectedDifficulty,
+    )
+    setSessionQuestions(shuffleArray(questions))
     setAnswers({})
     setQuestionFlags({})
     setCurrentIndex(0)
     setTimeLeft(QUIZ_DURATION_SECONDS)
+    setIsQuizPaused(false)
+    isAwaitingTabConfirmRef.current = false
+    clearTabGraceTimer()
     setScreen('quiz')
   }
 
@@ -861,7 +1303,7 @@ function App() {
   const goToNextQuestion = () => {
     if (!canProceed) return
 
-    if (currentIndex === filteredQuestions.length - 1) {
+    if (currentIndex === sessionQuestions.length - 1) {
       finalizeSession('Selesai')
       return
     }
@@ -877,6 +1319,10 @@ function App() {
     setAnswers({})
     setQuestionFlags({})
     setTimeLeft(QUIZ_DURATION_SECONDS)
+    setSessionQuestions([])
+    setIsQuizPaused(false)
+    isAwaitingTabConfirmRef.current = false
+    clearTabGraceTimer()
     sessionResolvedRef.current = false
     setScreen('setup')
   }
@@ -1200,10 +1646,10 @@ function App() {
                   {selectedDifficulty}
                 </span>
                 <span className="ml-auto text-white/60">
-                  Soal {currentIndex + 1} / {filteredQuestions.length}
+                  Soal {currentIndex + 1} / {sessionQuestions.length}
                 </span>
                 <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold">
-                  ⏱ {formatTime(timeLeft)}
+                  {isQuizPaused ? '⏸ Dijeda' : `⏱ ${formatTime(timeLeft)}`}
                 </span>
               </div>
 
@@ -1333,7 +1779,7 @@ function App() {
                         disabled={!canProceed}
                         className="mobile-btn k-btn-primary inline-flex items-center justify-center gap-2 px-7 py-3 text-sm"
                       >
-                        {currentIndex === filteredQuestions.length - 1 ? 'Selesai' : 'Selanjutnya'}
+                        {currentIndex === sessionQuestions.length - 1 ? 'Selesai' : 'Selanjutnya'}
                         <ArrowRight className="size-4" />
                       </motion.button>
                     </div>
@@ -1348,7 +1794,7 @@ function App() {
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {filteredQuestions.map((question, index) => {
+                      {sessionQuestions.map((question, index) => {
                         const isAnswered = answers[question.id] !== undefined
                         const isFlagged = questionFlags[question.id]
                         const isCurrent = currentIndex === index
@@ -1496,7 +1942,7 @@ function App() {
                     Review Cepat
                   </p>
                   <div className="max-h-none space-y-2 overflow-y-auto pr-1 sm:max-h-[420px]">
-                    {filteredQuestions.map((question, index) => {
+                    {sessionQuestions.map((question, index) => {
                       const isCorrect = answers[question.id] === question.correctAnswer
                       return (
                         <div
