@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Simulasi TKA MAKN Ende">
+  <rect width="64" height="64" rx="18" fill="#031c19"/>
+  <path d="M18 18h18c5.5 0 10 4.5 10 10v18H28c-5.5 0-10-4.5-10-10V18Z" fill="#ccfbf1" opacity="0.96"/>
+  <path d="M25 27h18M25 34h13M25 41h18" stroke="#031c19" stroke-width="4" stroke-linecap="round"/>
+</svg>
