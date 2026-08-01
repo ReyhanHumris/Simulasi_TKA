@@ -569,7 +569,7 @@ const buildMatematikaLanjutQuestion = (p: number, d: Difficulty, q: number) => {
   }
   if (q === 22) {
     const n22 = 5 + p; const r22 = 2 + m % 2
-    const fact = (n: number) => n <= 1 ? 1 : n * fact(n - 1)
+    const fact = (n: number): number => n <= 1 ? 1 : n * fact(n - 1)
     const comb = Math.round(fact(n22) / (fact(r22) * fact(n22 - r22)))
     return { stem: `Banyak cara memilih ${r22} dari ${n22} benda tanpa memperhatikan urutan C(${n22},${r22}) adalah ...`, ...numOpts(comb, seed, comb / 3), explanation: `C(${n22},${r22}) = ${n22}!/(${r22}!·${n22 - r22}!) = ${comb}.` }
   }
