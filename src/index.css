@@ -225,6 +225,79 @@ input {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@media (max-width: 640px) {
+  body {
+    font-size: 15px;
+  }
+
+  .mobile-topbar {
+    font-size: 0.66rem;
+    line-height: 1.4;
+    padding-top: 0.6rem;
+    padding-bottom: 0.6rem;
+  }
+
+  .mobile-header {
+    padding-top: 0.8rem;
+    padding-bottom: 0.8rem;
+  }
+
+  .mobile-hero {
+    padding: 1rem !important;
+    border-radius: 16px;
+  }
+
+  .mobile-hero h2 {
+    font-size: 1.9rem !important;
+    line-height: 1.2;
+  }
+
+  .mobile-hero p {
+    font-size: 0.95rem !important;
+    line-height: 1.7 !important;
+  }
+
+  .mobile-card {
+    padding: 1rem !important;
+  }
+
+  .mobile-card-title {
+    font-size: 0.95rem !important;
+  }
+
+  .mobile-pill {
+    min-height: 44px;
+    border-radius: 12px;
+  }
+
+  .mobile-btn {
+    min-height: 48px;
+    border-radius: 12px;
+  }
+
+  .mobile-option {
+    padding: 0.85rem !important;
+    align-items: center;
+  }
+
+  .mobile-option .option-text {
+    font-size: 0.95rem !important;
+    line-height: 1.45;
+  }
+
+  .mobile-quiz-meta {
+    align-items: flex-start;
+  }
+
+  .mobile-quiz-meta .ml-auto {
+    margin-left: 0;
+  }
+
+  .mobile-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }

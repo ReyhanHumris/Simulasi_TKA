@@ -8,6 +8,7 @@ import {
   Calculator,
   CheckCircle2,
   ClipboardList,
+  Languages,
   Layers3,
   RotateCcw,
   ScrollText,
@@ -17,7 +18,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-const SUBJECTS = ['Matematika', 'PAI', 'Penalaran Logika'] as const
+const SUBJECTS = ['Matematika', 'Bahasa Indonesia', 'Bahasa Inggris'] as const
 const PAKETS = ['Paket 1', 'Paket 2', 'Paket 3', 'Paket 4', 'Paket 5'] as const
 const DIFFICULTIES = ['Mudah', 'Sedang', 'Sulit'] as const
 
@@ -42,18 +43,18 @@ type OptionSet = Pick<Question, 'options' | 'correctAnswer'>
 const subjectMeta: Record<Subject, { icon: LucideIcon; description: string; metric: string }> = {
   Matematika: {
     icon: Calculator,
-    description: 'Operasi numerik, aljabar, geometri, dan pola kuantitatif.',
-    metric: '25 kombinasi soal',
+    description: 'Bilangan, aljabar, geometri, dan penalaran kuantitatif.',
+    metric: '25 soal',
   },
-  PAI: {
+  'Bahasa Indonesia': {
     icon: ScrollText,
-    description: 'Akidah, ibadah, akhlak, Al-Qur’an Hadis, dan muamalah.',
-    metric: 'Kontekstual MA',
+    description: 'Pemahaman bacaan, kata baku, dan struktur bahasa Indonesia.',
+    metric: '25 soal',
   },
-  'Penalaran Logika': {
-    icon: Brain,
-    description: 'Deret, silogisme, deduksi, pola, dan pemecahan masalah.',
-    metric: 'Reasoning drill',
+  'Bahasa Inggris': {
+    icon: Languages,
+    description: 'Kosakata, grammar, dan pemahaman teks singkat.',
+    metric: '25 soal',
   },
 }
 
@@ -469,144 +470,89 @@ const buildPaiQuestion = (paketNumber: number, difficulty: Difficulty, questionN
   }
 }
 
-const buildLogicQuestion = (paketNumber: number, difficulty: Difficulty, questionNumber: number) => {
-  const seed = paketNumber * 23 + questionNumber
-  const start = paketNumber + 2
+const buildBahasaIndonesiaQuestion = (paketNumber: number, difficulty: Difficulty, questionNumber: number) => {
+  const seed = paketNumber * 29 + questionNumber
+  const templates = [
+    {
+      stem: 'Kata yang tepat untuk melengkapi kalimat "Para peserta didik ... tugas dengan sungguh-sungguh" adalah ...',
+      correct: 'menyelesaikan',
+      distractors: ['menyelesaikanlah', 'terselesaikan', 'diselesaikan'],
+      explanation: 'Kata kerja aktif yang tepat adalah "menyelesaikan".',
+    },
+    {
+      stem: 'Pernyataan berikut yang termasuk kalimat efektif adalah ...',
+      correct: 'Kami mengerjakan tugas bersama-sama di perpustakaan.',
+      distractors: ['Kami mengerjakan tugas bersama sama di perpustakaan', 'Kami mengerjakan tugas bersama-sama di perpustakaan tadi', 'Kami mengerjakan tugas bersama-sama di perpustakaan yang besar'],
+      explanation: 'Kalimat efektif tidak mengandung unsur berlebihan atau tidak perlu.',
+    },
+    {
+      stem: 'Makna kata "berkelanjutan" dalam konteks paragraf adalah ...',
+      correct: 'terus berlangsung',
+      distractors: ['berhenti sejenak', 'mengalami perubahan', 'terjadi sekali'],
+      explanation: 'Berkelanjutan berarti berlangsung terus-menerus.',
+    },
+    {
+      stem: 'Bagian teks yang berisi inti gagasan utama disebut ...',
+      correct: 'ide pokok',
+      distractors: ['penutup', 'detail contoh', 'data pendukung'],
+      explanation: 'Ide pokok adalah gagasan utama yang dibahas dalam paragraf.',
+    },
+    {
+      stem: 'Kalimat yang menggunakan tanda baca dengan benar adalah ...',
+      correct: 'Ibu berkata, "Besok kita pergi ke museum."',
+      distractors: ['Ibu berkata “Besok kita pergi ke museum”.', 'Ibu berkata, Besok kita pergi ke museum.', 'Ibu berkata: Besok kita pergi ke museum'],
+      explanation: 'Penggunaan tanda baca pada kalimat langsung harus tepat.',
+    },
+  ]
 
-  if (difficulty === 'Mudah') {
-    if (questionNumber === 1) {
-      const difference = paketNumber + 2
-      const answer = start + difference * 4
-      return {
-        stem: `Lanjutkan deret berikut: ${start}, ${start + difference}, ${start + difference * 2}, ${start + difference * 3}, ...`,
-        ...numericOptions(answer, seed, 2),
-        explanation: `Deret bertambah ${difference}, sehingga angka berikutnya ${answer}.`,
-      }
-    }
-
-    if (questionNumber === 2) {
-      const answer = 'Rajin'
-      return {
-        stem: `Semua siswa MAKN yang mengikuti simulasi adalah disiplin. Sebagian siswa disiplin adalah rajin. Kesimpulan yang pasti benar adalah ...`,
-        ...createOptionSet(answer, ['Semua siswa simulasi pasti rajin', 'Tidak ada siswa disiplin yang rajin', 'Semua siswa rajin mengikuti simulasi'], seed),
-        explanation: `Yang pasti hanya ada kategori rajin dalam kelompok disiplin; kesimpulan universal tidak dapat dipastikan.`,
-      }
-    }
-
-    if (questionNumber === 3) {
-      const answer = 'Kapal'
-      return {
-        stem: `Manakah yang tidak satu kelompok: bus, truk, kapal, mobil?`,
-        ...createOptionSet(answer, ['Bus', 'Truk', 'Mobil'], seed),
-        explanation: `Kapal bergerak di air, sedangkan lainnya kendaraan darat.`,
-      }
-    }
-
-    if (questionNumber === 4) {
-      const answer = paketNumber + 8
-      return {
-        stem: `Jika A = ${paketNumber + 3} dan B = A + 5, maka nilai B adalah ...`,
-        ...numericOptions(answer, seed, 2),
-        explanation: `B = A + 5 = ${paketNumber + 3} + 5 = ${answer}.`,
-      }
-    }
-
-    const answer = 'Timur'
-    return {
-      stem: `Jika utara berlawanan dengan selatan, maka barat berlawanan dengan ...`,
-      ...createOptionSet(answer, ['Utara', 'Selatan', 'Barat'], seed),
-      explanation: `Arah yang berlawanan dengan barat adalah timur.`,
-    }
-  }
-
-  if (difficulty === 'Sedang') {
-    if (questionNumber === 1) {
-      const first = paketNumber + 1
-      const answer = first + 1 + 2 + 4 + 7 + 11
-      return {
-        stem: `Deret ${first}, ${first + 1}, ${first + 3}, ${first + 7}, ${first + 14}, ... memiliki selisih bertambah 1, 2, 3, 4. Angka berikutnya adalah ...`,
-        ...numericOptions(answer, seed, 4),
-        explanation: `Selisih berikutnya 11 jika pola selisih naik 1, 2, 4, 7, 11; jadi jawabannya ${answer}.`,
-      }
-    }
-
-    if (questionNumber === 2) {
-      const answer = 'Dina bukan peserta final'
-      return {
-        stem: `Semua peserta final memakai kartu hijau. Dina tidak memakai kartu hijau. Kesimpulan yang valid adalah ...`,
-        ...createOptionSet(answer, ['Dina peserta final', 'Semua pemakai kartu hijau adalah finalis', 'Tidak ada finalis yang memakai kartu hijau'], seed),
-        explanation: `Jika finalis pasti memakai kartu hijau, maka yang tidak memakai kartu hijau bukan finalis.`,
-      }
-    }
-
-    if (questionNumber === 3) {
-      const answer = `${paketNumber + 4} kursi`
-      return {
-        stem: `Dalam satu baris, Rani duduk di sebelah kiri Fajar. Ada ${paketNumber + 2} kursi di antara mereka dan Fajar di kursi terakhir. Jumlah kursi minimal adalah ...`,
-        ...createOptionSet(answer, [`${paketNumber + 3} kursi`, `${paketNumber + 5} kursi`, `${paketNumber + 6} kursi`], seed),
-        explanation: `Rani, ${paketNumber + 2} kursi di antara, lalu Fajar: total ${paketNumber + 4} kursi.`,
-      }
-    }
-
-    if (questionNumber === 4) {
-      const multiplier = paketNumber + 2
-      const answer = (questionNumber + 3) * multiplier
-      return {
-        stem: `Jika simbol ★ berarti dikali ${multiplier}, maka nilai dari ${questionNumber + 3} ★ adalah ...`,
-        ...numericOptions(answer, seed, 3),
-        explanation: `${questionNumber + 3} ★ = ${questionNumber + 3} × ${multiplier} = ${answer}.`,
-      }
-    }
-
-    const answer = 'Pernyataan 2 saja cukup'
-    return {
-      stem: `Untuk menentukan apakah N genap, diketahui: (1) N habis dibagi 3, (2) N habis dibagi 6. Data mana yang cukup?`,
-      ...createOptionSet(answer, ['Pernyataan 1 saja cukup', 'Pernyataan 1 dan 2 cukup bersama-sama', 'Keduanya tidak cukup'], seed),
-      explanation: `Pernyataan 2 saja sebenarnya menjamin N genap; opsi terkuat pada data adalah pernyataan 2 saja.`,
-    }
-  }
-
-  if (questionNumber === 1) {
-    const answer = 'Deni'
-    return {
-      stem: `Andi lebih cepat dari Bima. Citra lebih lambat dari Bima. Deni lebih cepat dari Andi. Siapa yang pasti berada di urutan pertama?`,
-      ...createOptionSet(answer, ['Andi', 'Bima', 'Citra'], seed),
-      explanation: `Urutannya Deni, Andi, Bima, lalu Citra; jadi Deni pasti berada di urutan pertama.`,
-    }
-  }
-
-  if (questionNumber === 2) {
-    const answer = 'Tidak ada kesimpulan pasti tentang hubungan pembaca jurnal dan anggota klub riset'
-    return {
-      stem: `Semua pembaca jurnal adalah peneliti. Sebagian peneliti adalah anggota klub riset. Kesimpulan yang paling aman adalah ...`,
-      ...createOptionSet(answer, ['Semua anggota klub riset pembaca jurnal', 'Tidak ada peneliti yang membaca jurnal', 'Semua peneliti anggota klub riset'], seed),
-      explanation: `Dari premis tidak ada irisan pasti antara pembaca jurnal dan klub riset; kesimpulan khusus tidak dapat dipastikan.`,
-    }
-  }
-
-  if (questionNumber === 3) {
-    const answer = paketNumber + 2
-    return {
-      stem: `Sebuah kode mengubah angka n menjadi 3n + ${paketNumber}. Jika hasil kode adalah ${3 * (paketNumber + 2) + paketNumber}, maka n = ...`,
-      ...numericOptions(answer, seed, 2),
-      explanation: `3n + ${paketNumber} = ${3 * (paketNumber + 2) + paketNumber}, maka n = ${paketNumber + 2}.`,
-    }
-  }
-
-  if (questionNumber === 4) {
-    const answer = 'Rabu'
-    return {
-      stem: `Jika hari ini Senin, maka 16 hari lagi adalah hari ...`,
-      ...createOptionSet(answer, ['Selasa', 'Kamis', 'Jumat'], seed),
-      explanation: `16 mod 7 = 2, dua hari setelah Senin adalah Rabu.`,
-    }
-  }
-
-  const answer = `${paketNumber + 3} cara`
+  const template = templates[((questionNumber - 1) % templates.length)]
   return {
-    stem: `Ada ${paketNumber + 3} kandidat ketua dan 1 posisi ketua. Banyak cara memilih ketua adalah ...`,
-    ...createOptionSet(answer, [`${paketNumber + 2} cara`, `${(paketNumber + 3) * 2} cara`, `${paketNumber + 4} cara`], seed),
-    explanation: `Untuk satu posisi ketua, banyak cara sama dengan jumlah kandidat: ${paketNumber + 3}.`,
+    stem: difficulty === 'Sulit' ? `${template.stem} (${questionNumber})` : template.stem,
+    ...createOptionSet(template.correct, template.distractors, seed + (difficulty === 'Sulit' ? 3 : 0)),
+    explanation: template.explanation,
+  }
+}
+
+const buildEnglishQuestion = (paketNumber: number, difficulty: Difficulty, questionNumber: number) => {
+  const seed = paketNumber * 31 + questionNumber
+  const templates = [
+    {
+      stem: 'Choose the correct word: "She is very ___ and always helps others."',
+      correct: 'kind',
+      distractors: ['angry', 'lazy', 'noisy'],
+      explanation: 'Kind fits the meaning of helping others.',
+    },
+    {
+      stem: 'Choose the correct sentence.',
+      correct: 'They have finished their homework.',
+      distractors: ['They has finished their homework.', 'They finisheds their homework.', 'They have finish their homework.'],
+      explanation: 'The correct present perfect form uses "have finished".',
+    },
+    {
+      stem: 'The opposite of "difficult" is ...',
+      correct: 'easy',
+      distractors: ['hard', 'complex', 'challenging'],
+      explanation: 'Easy is the antonym of difficult.',
+    },
+    {
+      stem: 'Complete the sentence: "I ___ to school every day."',
+      correct: 'go',
+      distractors: ['goes', 'gone', 'going'],
+      explanation: 'With I, the correct simple present form is go.',
+    },
+    {
+      stem: 'Which word is a noun?',
+      correct: 'book',
+      distractors: ['run', 'beautiful', 'quickly'],
+      explanation: 'Book is a noun because it names a thing.',
+    },
+  ]
+
+  const template = templates[((questionNumber - 1) % templates.length)]
+  return {
+    stem: difficulty === 'Sulit' ? `${template.stem} (${questionNumber})` : template.stem,
+    ...createOptionSet(template.correct, template.distractors, seed + (difficulty === 'Sulit' ? 2 : 0)),
+    explanation: template.explanation,
   }
 }
 
@@ -616,14 +562,14 @@ const generateQuestionBank = (): Question[] => {
   SUBJECTS.forEach((subject) => {
     PAKETS.forEach((paket, paketIndex) => {
       DIFFICULTIES.forEach((difficulty) => {
-        Array.from({ length: 5 }, (_, questionIndex) => {
+        Array.from({ length: 25 }, (_, questionIndex) => {
           const questionNumber = questionIndex + 1
           const builder =
             subject === 'Matematika'
               ? buildMathQuestion
-              : subject === 'PAI'
-                ? buildPaiQuestion
-                : buildLogicQuestion
+              : subject === 'Bahasa Indonesia'
+                ? buildBahasaIndonesiaQuestion
+                : buildEnglishQuestion
           const generated = builder(paketIndex + 1, difficulty, questionNumber)
 
           bank.push({
@@ -669,6 +615,7 @@ function App() {
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | null>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, number>>({})
+  const [timeLeft, setTimeLeft] = useState(50 * 60)
   const windowSize = useWindowSize()
 
   const filteredQuestions = useMemo(
@@ -686,6 +633,11 @@ function App() {
   const selectedAnswer = currentQuestion ? answers[currentQuestion.id] : undefined
   const isSetupComplete = Boolean(selectedSubject && selectedPaket && selectedDifficulty)
   const progress = filteredQuestions.length ? ((currentIndex + 1) / filteredQuestions.length) * 100 : 0
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
 
   const result = useMemo(() => {
     const correct = filteredQuestions.filter((question) => answers[question.id] === question.correctAnswer).length
@@ -695,10 +647,29 @@ function App() {
     return { correct, incorrect, total, score }
   }, [answers, filteredQuestions])
 
+  useEffect(() => {
+    if (screen !== 'quiz') return
+
+    const timer = window.setInterval(() => {
+      setTimeLeft((previousTime) => {
+        if (previousTime <= 1) {
+          window.clearInterval(timer)
+          setScreen('result')
+          return 0
+        }
+
+        return previousTime - 1
+      })
+    }, 1000)
+
+    return () => window.clearInterval(timer)
+  }, [screen])
+
   const startSimulation = () => {
     if (!isSetupComplete) return
     setAnswers({})
     setCurrentIndex(0)
+    setTimeLeft(50 * 60)
     setScreen('quiz')
   }
 
@@ -724,6 +695,7 @@ function App() {
     setSelectedDifficulty(null)
     setCurrentIndex(0)
     setAnswers({})
+    setTimeLeft(50 * 60)
     setScreen('setup')
   }
 
@@ -734,7 +706,7 @@ function App() {
 
       {/* ── Kingster Top Bar ── */}
       <div className="k-topbar">
-        <div className="mx-auto flex max-w-7xl flex-col gap-1 px-4 py-2 text-center text-[0.7rem] sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-0 lg:px-8">
+        <div className="mobile-topbar mx-auto flex max-w-7xl flex-col gap-1 px-4 py-2 text-center text-[0.7rem] sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-0 lg:px-8">
           <span>📍 MAKN Ende, Nusa Tenggara Timur</span>
           <span>CBT Readiness Lab · Tahun Ajaran 2025/2026</span>
         </div>
@@ -742,7 +714,7 @@ function App() {
 
       {/* ── Kingster Main Header ── */}
       <header className="k-header sticky top-0 z-50">
-        <div className="mx-auto flex max-w-7xl flex-col items-start gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6 lg:px-8">
+        <div className="mobile-header mx-auto flex max-w-7xl flex-col items-start gap-4 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6 sm:py-4 lg:px-8">
           {/* Logo */}
           <div className="flex items-center gap-3">
             <motion.div
@@ -755,7 +727,7 @@ function App() {
             </motion.div>
             <div>
               <p className="k-section-label" style={{ color: 'var(--k-orange)', fontSize: '0.6rem' }}>CBT Readiness Lab</p>
-              <h1 className="text-lg font-bold leading-tight" style={{ fontFamily: 'Poppins, sans-serif', color: 'var(--k-navy)', marginTop: '1px' }}>
+              <h1 className="text-base font-bold leading-tight sm:text-lg" style={{ fontFamily: 'Poppins, sans-serif', color: 'var(--k-navy)', marginTop: '1px' }}>
                 Simulasi TKA MAKN Ende
               </h1>
             </div>
@@ -765,8 +737,8 @@ function App() {
           <div className="hidden gap-2 sm:flex">
             {[
               { value: '3', label: 'Mapel' },
-              { value: '5', label: 'Paket' },
-              { value: '70', label: 'KKM' },
+              { value: '25', label: 'Soal' },
+              { value: '50m', label: 'Waktu' },
             ].map((s) => (
               <div
                 key={s.label}
@@ -800,7 +772,7 @@ function App() {
             >
               {/* ── Hero Left Panel ── */}
               <div
-                className="k-hero relative overflow-hidden rounded-xl p-5 text-white sm:p-10 lg:p-12"
+                className="mobile-hero k-hero relative overflow-hidden rounded-xl p-4 text-white sm:p-10 lg:p-12"
                 style={{ minHeight: 'auto' }}
               >
                 {/* Decorative circle */}
@@ -824,24 +796,24 @@ function App() {
                   </div>
 
                   <h2
-                    className="mb-5 text-3xl font-extrabold leading-tight sm:text-5xl"
+                    className="mb-4 text-2xl font-extrabold leading-tight sm:mb-5 sm:text-5xl"
                     style={{ fontFamily: 'Poppins, sans-serif' }}
                   >
-                    Latihan TKA yang<br />
-                    <span style={{ color: 'var(--k-orange-light)' }}>Fokus & Terukur.</span>
+                    Simulasi TKA<br />
+                    <span style={{ color: 'var(--k-orange-light)' }}>Pusmendik & Terukur.</span>
                   </h2>
 
                   <div className="mb-1 h-1 w-12 rounded-full" style={{ background: 'var(--k-orange)' }} />
 
                   <p className="mb-8 max-w-lg text-sm leading-7 text-white/75 sm:text-base sm:leading-8">
-                    Pilih mata pelajaran, paket, dan tingkat kesulitan. Sistem akan merender 5 soal unik dari bank soal dinamis untuk kombinasi yang dipilih.
+                    Pilih mata pelajaran, paket, dan tingkat kesulitan. Sistem akan menampilkan 25 soal dalam 50 menit untuk kombinasi yang dipilih.
                   </p>
 
                   {/* Feature cards */}
                   <div className="grid gap-3 sm:grid-cols-3">
                     {[
-                      { label: `${questionBank.length} Soal`, icon: ClipboardList, desc: 'Bank soal dinamis' },
-                      { label: 'Multi Paket', icon: Layers3, desc: '5 variasi per mapel' },
+                      { label: '25 Soal', icon: ClipboardList, desc: 'Satu paket ujian' },
+                      { label: '50 Menit', icon: Layers3, desc: 'Durasi pengerjaan' },
                       { label: 'Skor Instan', icon: Trophy, desc: 'Evaluasi langsung' },
                     ].map((item) => {
                       const Icon = item.icon
@@ -867,7 +839,7 @@ function App() {
               </div>
 
               {/* ── Form Panel Right ── */}
-              <div className="k-card k-card-accent space-y-6 rounded-xl p-4 sm:p-7">
+              <div className="mobile-card k-card k-card-accent space-y-6 rounded-xl p-4 sm:p-7">
                 {/* 1. Mata Pelajaran */}
                 <div>
                   <div className="mb-1 flex items-center justify-between">
@@ -888,7 +860,7 @@ function App() {
                           whileHover={{ y: -2 }}
                           whileTap={{ scale: 0.98 }}
                           onClick={() => setSelectedSubject(subject)}
-                          className={`k-subject-card w-full p-4 text-left${isSelected ? ' selected' : ''}`}
+                          className={`k-subject-card w-full p-3 text-left sm:p-4${isSelected ? ' selected' : ''}`}
                         >
                           <div className="flex items-start gap-3">
                             <div
@@ -930,7 +902,7 @@ function App() {
                     <span className="k-section-label text-[0.62rem]">Set</span>
                   </div>
                   <div className="mb-4 h-0.5 w-8 rounded-full" style={{ background: 'var(--k-orange)' }} />
-                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                     {PAKETS.map((paket) => {
                       const isSelected = selectedPaket === paket
                       return (
@@ -940,7 +912,7 @@ function App() {
                           whileHover={{ y: -2 }}
                           whileTap={{ scale: 0.97 }}
                           onClick={() => setSelectedPaket(paket)}
-                          className="rounded-lg py-3 text-center text-xs font-bold transition"
+                          className="mobile-pill rounded-lg py-3 text-center text-xs font-bold transition"
                           style={{
                             fontFamily: 'Poppins, sans-serif',
                             background: isSelected ? 'var(--k-navy)' : '#eef3fa',
@@ -980,7 +952,7 @@ function App() {
                           whileHover={{ y: -2 }}
                           whileTap={{ scale: 0.97 }}
                           onClick={() => setSelectedDifficulty(difficulty)}
-                          className="rounded-lg p-3 text-left transition"
+                          className="mobile-pill rounded-lg p-3 text-left transition"
                           style={{
                             background: isSelected ? colorMap[difficulty] : '#eef3fa',
                             color: isSelected ? '#fff' : 'var(--k-navy)',
@@ -1002,7 +974,7 @@ function App() {
                   whileTap={isSetupComplete ? { scale: 0.98 } : undefined}
                   onClick={startSimulation}
                   disabled={!isSetupComplete}
-                  className="k-btn-primary flex w-full items-center justify-center gap-3 px-6 py-3.5 text-sm sm:py-4 sm:text-base"
+                  className="mobile-btn k-btn-primary flex w-full items-center justify-center gap-3 px-6 py-3.5 text-sm sm:py-4 sm:text-base"
                 >
                   Mulai Simulasi
                   <ArrowRight className="size-5" />
@@ -1026,7 +998,7 @@ function App() {
             >
               {/* Quiz info strip */}
               <div
-                className="flex flex-col gap-2 rounded-lg px-4 py-3 text-sm text-white sm:flex-row sm:items-center sm:gap-3 sm:px-5"
+                className="mobile-quiz-meta flex flex-col gap-2 rounded-lg px-4 py-3 text-sm text-white sm:flex-row sm:items-center sm:gap-3 sm:px-5"
                 style={{ background: 'var(--k-navy)' }}
               >
                 <span className="flex items-center gap-1.5 font-semibold">
@@ -1047,6 +1019,9 @@ function App() {
                 </span>
                 <span className="ml-auto text-white/60">
                   Soal {currentIndex + 1} / {filteredQuestions.length}
+                </span>
+                <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold">
+                  ⏱ {formatTime(timeLeft)}
                 </span>
               </div>
 
@@ -1116,7 +1091,7 @@ function App() {
                             whileHover={{ x: 4 }}
                             whileTap={{ scale: 0.99 }}
                             onClick={() => chooseAnswer(optionIndex)}
-                            className={`k-option-card flex w-full items-start gap-3 p-3 sm:gap-4 sm:p-4${isSelected ? ' selected' : ''}`}
+                            className={`mobile-option k-option-card flex w-full items-start gap-3 p-3 sm:gap-4 sm:p-4${isSelected ? ' selected' : ''}`}
                           >
                             <span
                               className="grid size-8 shrink-0 place-items-center rounded-md text-sm font-extrabold sm:size-9"
@@ -1130,7 +1105,7 @@ function App() {
                               {optionLetter}
                             </span>
                             <span
-                              className="pt-1 text-sm font-medium leading-6 sm:pt-1.5 sm:text-base"
+                              className="option-text pt-1 text-sm font-medium leading-6 sm:pt-1.5 sm:text-base"
                               style={{ color: isSelected ? 'var(--k-navy)' : 'var(--k-text)' }}
                             >
                               {option}
@@ -1144,10 +1119,10 @@ function App() {
 
                 {/* Footer */}
                 <div
-                  className="flex flex-col-reverse items-center justify-between gap-3 border-t px-4 py-4 sm:flex-row sm:px-8"
+                  className="flex flex-col-reverse items-stretch justify-between gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:px-8"
                   style={{ borderColor: 'var(--k-border)', background: '#fafcff' }}
                 >
-                  <p className="text-sm" style={{ color: 'var(--k-text-muted)' }}>
+                  <p className="text-center text-sm sm:text-left" style={{ color: 'var(--k-text-muted)' }}>
                     {selectedAnswer === undefined
                       ? '⬆ Pilih jawaban untuk mengaktifkan tombol berikutnya.'
                       : '✅ Jawaban tersimpan. Lanjutkan saat sudah yakin.'}
@@ -1158,7 +1133,7 @@ function App() {
                     whileTap={selectedAnswer !== undefined ? { scale: 0.98 } : undefined}
                     onClick={goToNextQuestion}
                     disabled={selectedAnswer === undefined}
-                    className="k-btn-primary inline-flex items-center gap-2 px-7 py-3 text-sm"
+                    className="mobile-btn k-btn-primary inline-flex w-full items-center justify-center gap-2 px-7 py-3 text-sm sm:w-auto"
                   >
                     {currentIndex === filteredQuestions.length - 1 ? 'Selesai' : 'Selanjutnya'}
                     <ArrowRight className="size-4" />
@@ -1193,7 +1168,7 @@ function App() {
               )}
 
               {/* Score panel */}
-              <div className="k-card rounded-xl p-5 text-center sm:p-8" style={{ borderTop: `4px solid ${passed ? 'var(--k-orange)' : '#c0392b'}` }}>
+              <div className="mobile-card k-card rounded-xl p-5 text-center sm:p-8" style={{ borderTop: `4px solid ${passed ? 'var(--k-orange)' : '#c0392b'}` }}>
                 <div
                   className="mx-auto mb-4 grid size-20 place-items-center rounded-xl"
                   style={{ background: passed ? 'var(--k-navy)' : '#fdecea', color: passed ? '#fff' : '#c0392b' }}
@@ -1234,7 +1209,7 @@ function App() {
                 </p>
 
                 {/* Stats row */}
-                <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="mobile-stats mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
                   {[
                     { label: 'Benar', value: result.correct, color: 'var(--k-correct)' },
                     { label: 'Salah', value: result.incorrect, color: 'var(--k-wrong)' },
@@ -1264,7 +1239,7 @@ function App() {
               </div>
 
               {/* Review panel */}
-              <div className="k-card k-card-accent rounded-xl p-5 sm:p-8">
+              <div className="mobile-card k-card k-card-accent rounded-xl p-5 sm:p-8">
                 <p className="k-section-label mb-1">Ringkasan Ujian</p>
                 <div className="mb-1 h-0.5 w-10 rounded-full" style={{ background: 'var(--k-orange)' }} />
                 <h3
@@ -1326,7 +1301,7 @@ function App() {
       </div>
 
       {/* ── Kingster Footer ── */}
-      <footer className="mt-12 border-t" style={{ borderColor: 'var(--k-border)', background: 'var(--k-navy)' }}>
+      <footer className="mt-10 border-t sm:mt-12" style={{ borderColor: 'var(--k-border)', background: 'var(--k-navy)' }}>
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-between gap-3 text-center sm:flex-row sm:text-left">
             <div className="flex items-center gap-3">
