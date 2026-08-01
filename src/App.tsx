@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import Confetti from 'react-confetti'
+import Swal from 'sweetalert2'
+import 'sweetalert2/dist/sweetalert2.min.css'
 import {
   ArrowRight,
   BookOpenCheck,
@@ -21,6 +23,9 @@ import {
 const SUBJECTS = ['Matematika', 'Bahasa Indonesia', 'Bahasa Inggris'] as const
 const PAKETS = ['Paket 1', 'Paket 2', 'Paket 3', 'Paket 4', 'Paket 5'] as const
 const DIFFICULTIES = ['Mudah', 'Sedang', 'Sulit'] as const
+const TOTAL_QUESTIONS = 40
+const QUIZ_DURATION_SECONDS = 50 * 60
+const HISTORY_STORAGE_KEY = 'tka-session-history'
 
 type Subject = (typeof SUBJECTS)[number]
 type Paket = (typeof PAKETS)[number]
@@ -44,17 +49,17 @@ const subjectMeta: Record<Subject, { icon: LucideIcon; description: string; metr
   Matematika: {
     icon: Calculator,
     description: 'Bilangan, aljabar, geometri, dan penalaran kuantitatif.',
-    metric: '25 soal',
+    metric: '40 soal',
   },
   'Bahasa Indonesia': {
     icon: ScrollText,
     description: 'Pemahaman bacaan, kata baku, dan struktur bahasa Indonesia.',
-    metric: '25 soal',
+    metric: '40 soal',
   },
   'Bahasa Inggris': {
     icon: Languages,
     description: 'Kosakata, grammar, dan pemahaman teks singkat.',
-    metric: '25 soal',
+    metric: '40 soal',
   },
 }
 
@@ -562,7 +567,7 @@ const generateQuestionBank = (): Question[] => {
   SUBJECTS.forEach((subject) => {
     PAKETS.forEach((paket, paketIndex) => {
       DIFFICULTIES.forEach((difficulty) => {
-        Array.from({ length: 25 }, (_, questionIndex) => {
+        Array.from({ length: TOTAL_QUESTIONS }, (_, questionIndex) => {
           const questionNumber = questionIndex + 1
           const builder =
             subject === 'Matematika'
@@ -616,7 +621,27 @@ function App() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, number>>({})
   const [questionFlags, setQuestionFlags] = useState<Record<string, boolean>>({})
-  const [timeLeft, setTimeLeft] = useState(50 * 60)
+  const [timeLeft, setTimeLeft] = useState(QUIZ_DURATION_SECONDS)
+  const [history, setHistory] = useState<Array<{
+    id: string
+    subject: Subject
+    paket: Paket
+    difficulty: Difficulty
+    score: number
+    correct: number
+    incorrect: number
+    total: number
+    answeredCount: number
+    flaggedCount: number
+    status: string
+    completedAt: string
+  }>>([])
+  const sessionResolvedRef = useRef(false)
+  const selectedSubjectRef = useRef<Subject | null>(selectedSubject)
+  const selectedPaketRef = useRef<Paket | null>(selectedPaket)
+  const selectedDifficultyRef = useRef<Difficulty | null>(selectedDifficulty)
+  const answersRef = useRef<Record<string, number>>({})
+  const questionFlagsRef = useRef<Record<string, boolean>>({})
   const windowSize = useWindowSize()
 
   const filteredQuestions = useMemo(
@@ -642,6 +667,26 @@ function App() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
+  useEffect(() => {
+    selectedSubjectRef.current = selectedSubject
+  }, [selectedSubject])
+
+  useEffect(() => {
+    selectedPaketRef.current = selectedPaket
+  }, [selectedPaket])
+
+  useEffect(() => {
+    selectedDifficultyRef.current = selectedDifficulty
+  }, [selectedDifficulty])
+
+  useEffect(() => {
+    answersRef.current = answers
+  }, [answers])
+
+  useEffect(() => {
+    questionFlagsRef.current = questionFlags
+  }, [questionFlags])
+
   const result = useMemo(() => {
     const correct = filteredQuestions.filter((question) => answers[question.id] === question.correctAnswer).length
     const total = filteredQuestions.length
@@ -653,11 +698,16 @@ function App() {
   useEffect(() => {
     if (screen !== 'quiz') return
 
+    sessionResolvedRef.current = false
+
     const timer = window.setInterval(() => {
       setTimeLeft((previousTime) => {
         if (previousTime <= 1) {
           window.clearInterval(timer)
-          setScreen('result')
+          if (!sessionResolvedRef.current) {
+            sessionResolvedRef.current = true
+            finalizeSession('Waktu habis')
+          }
           return 0
         }
 
@@ -668,18 +718,109 @@ function App() {
     return () => window.clearInterval(timer)
   }, [screen])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const savedHistory = window.localStorage.getItem(HISTORY_STORAGE_KEY)
+    if (savedHistory) {
+      try {
+        setHistory(JSON.parse(savedHistory))
+      } catch {
+        window.localStorage.removeItem(HISTORY_STORAGE_KEY)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (screen !== 'quiz') return
+      event.preventDefault()
+      event.returnValue = ''
+      persistSessionRecord('Tab ditutup')
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && screen === 'quiz' && !sessionResolvedRef.current) {
+        persistSessionRecord('Pindah tab / tab ditutup')
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [screen])
+
+  const persistSessionRecord = (status: string) => {
+    const subject = selectedSubjectRef.current
+    const paket = selectedPaketRef.current
+    const difficulty = selectedDifficultyRef.current
+
+    if (screen !== 'quiz' || sessionResolvedRef.current || !subject || !paket || !difficulty) {
+      return
+    }
+
+    sessionResolvedRef.current = true
+
+    const total = filteredQuestions.length
+    const correct = filteredQuestions.filter((question) => answersRef.current[question.id] === question.correctAnswer).length
+    const incorrect = Math.max(total - correct, 0)
+    const score = total ? Math.round((correct / total) * 100) : 0
+    const entry = {
+      id: `${subject}-${paket}-${difficulty}-${Date.now()}`,
+      subject,
+      paket,
+      difficulty,
+      score,
+      correct,
+      incorrect,
+      total,
+      answeredCount: Object.keys(answersRef.current).length,
+      flaggedCount: Object.values(questionFlagsRef.current).filter(Boolean).length,
+      status,
+      completedAt: new Date().toISOString(),
+    }
+
+    const nextHistory = [entry, ...history].slice(0, 8)
+    setHistory(nextHistory)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(nextHistory))
+    }
+
+    setScreen('result')
+  }
+
+  const finalizeSession = (status: string) => {
+    persistSessionRecord(status)
+  }
+
   const startSimulation = () => {
     if (!isSetupComplete) return
+    sessionResolvedRef.current = false
     setAnswers({})
     setQuestionFlags({})
     setCurrentIndex(0)
-    setTimeLeft(50 * 60)
+    setTimeLeft(QUIZ_DURATION_SECONDS)
     setScreen('quiz')
   }
 
   const chooseAnswer = (optionIndex: number) => {
     if (!currentQuestion) return
     setAnswers((previousAnswers) => ({ ...previousAnswers, [currentQuestion.id]: optionIndex }))
+    Swal.fire({
+      icon: 'success',
+      title: 'Jawaban tersimpan',
+      text: 'Jawaban Anda berhasil dicatat.',
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 1400,
+    })
   }
 
   const toggleQuestionFlag = () => {
@@ -689,6 +830,16 @@ function App() {
       ...previousFlags,
       [currentQuestion.id]: !previousFlags[currentQuestion.id],
     }))
+
+    Swal.fire({
+      icon: 'warning',
+      title: isCurrentQuestionFlagged ? 'Tanda ragu-ragu dihapus' : 'Soal ditandai ragu-ragu',
+      text: isCurrentQuestionFlagged ? 'Anda menghapus tanda ragu-ragu pada soal ini.' : 'Anda menandai soal ini sebagai ragu-ragu.',
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 1400,
+    })
   }
 
   const jumpToQuestion = (index: number) => {
@@ -699,7 +850,7 @@ function App() {
     if (!canProceed) return
 
     if (currentIndex === filteredQuestions.length - 1) {
-      setScreen('result')
+      finalizeSession('Selesai')
       return
     }
 
@@ -713,7 +864,8 @@ function App() {
     setCurrentIndex(0)
     setAnswers({})
     setQuestionFlags({})
-    setTimeLeft(50 * 60)
+    setTimeLeft(QUIZ_DURATION_SECONDS)
+    sessionResolvedRef.current = false
     setScreen('setup')
   }
 
@@ -755,7 +907,7 @@ function App() {
           <div className="hidden gap-2 sm:flex">
             {[
               { value: '3', label: 'Mapel' },
-              { value: '25', label: 'Soal' },
+              { value: '40', label: 'Soal' },
               { value: '50m', label: 'Waktu' },
             ].map((s) => (
               <div
@@ -824,13 +976,13 @@ function App() {
                   <div className="mb-1 h-1 w-12 rounded-full" style={{ background: 'var(--k-orange)' }} />
 
                   <p className="mb-8 max-w-lg text-sm leading-7 text-white/75 sm:text-base sm:leading-8">
-                    Pilih mata pelajaran, paket, dan tingkat kesulitan. Sistem akan menampilkan 25 soal dalam 50 menit untuk kombinasi yang dipilih.
+                    Pilih mata pelajaran, paket, dan tingkat kesulitan. Sistem akan menampilkan 40 soal dalam 50 menit untuk kombinasi yang dipilih.
                   </p>
 
                   {/* Feature cards */}
                   <div className="grid gap-3 sm:grid-cols-3">
                     {[
-                      { label: '25 Soal', icon: ClipboardList, desc: 'Satu paket ujian' },
+                      { label: '40 Soal', icon: ClipboardList, desc: 'Satu paket ujian' },
                       { label: '50 Menit', icon: Layers3, desc: 'Durasi pengerjaan' },
                       { label: 'Skor Instan', icon: Trophy, desc: 'Evaluasi langsung' },
                     ].map((item) => {
