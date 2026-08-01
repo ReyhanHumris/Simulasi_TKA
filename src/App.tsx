@@ -793,6 +793,18 @@ function App() {
     }
 
     setScreen('result')
+
+    if (status.includes('tab') || status.includes('Tab')) {
+      window.setTimeout(() => {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Sesi ujian terputus',
+          text: 'Anda pindah tab atau menutup tab. Ujian otomatis selesai dan jawaban Anda tersimpan.',
+          confirmButtonText: 'Lihat hasil',
+          confirmButtonColor: '#2563eb',
+        })
+      }, 0)
+    }
   }
 
   const finalizeSession = (status: string) => {
