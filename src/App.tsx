@@ -615,6 +615,7 @@ function App() {
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | null>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, number>>({})
+  const [questionFlags, setQuestionFlags] = useState<Record<string, boolean>>({})
   const [timeLeft, setTimeLeft] = useState(50 * 60)
   const windowSize = useWindowSize()
 
@@ -633,6 +634,8 @@ function App() {
   const selectedAnswer = currentQuestion ? answers[currentQuestion.id] : undefined
   const isSetupComplete = Boolean(selectedSubject && selectedPaket && selectedDifficulty)
   const progress = filteredQuestions.length ? ((currentIndex + 1) / filteredQuestions.length) * 100 : 0
+  const isCurrentQuestionFlagged = Boolean(currentQuestion && questionFlags[currentQuestion.id])
+  const canProceed = selectedAnswer !== undefined || isCurrentQuestionFlagged
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
@@ -668,6 +671,7 @@ function App() {
   const startSimulation = () => {
     if (!isSetupComplete) return
     setAnswers({})
+    setQuestionFlags({})
     setCurrentIndex(0)
     setTimeLeft(50 * 60)
     setScreen('quiz')
@@ -678,8 +682,21 @@ function App() {
     setAnswers((previousAnswers) => ({ ...previousAnswers, [currentQuestion.id]: optionIndex }))
   }
 
+  const toggleQuestionFlag = () => {
+    if (!currentQuestion) return
+
+    setQuestionFlags((previousFlags) => ({
+      ...previousFlags,
+      [currentQuestion.id]: !previousFlags[currentQuestion.id],
+    }))
+  }
+
+  const jumpToQuestion = (index: number) => {
+    setCurrentIndex(index)
+  }
+
   const goToNextQuestion = () => {
-    if (selectedAnswer === undefined) return
+    if (!canProceed) return
 
     if (currentIndex === filteredQuestions.length - 1) {
       setScreen('result')
@@ -695,6 +712,7 @@ function App() {
     setSelectedDifficulty(null)
     setCurrentIndex(0)
     setAnswers({})
+    setQuestionFlags({})
     setTimeLeft(50 * 60)
     setScreen('setup')
   }
@@ -1119,25 +1137,80 @@ function App() {
 
                 {/* Footer */}
                 <div
-                  className="flex flex-col-reverse items-stretch justify-between gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:px-8"
+                  className="flex flex-col gap-3 border-t px-4 py-4 sm:px-8"
                   style={{ borderColor: 'var(--k-border)', background: '#fafcff' }}
                 >
-                  <p className="text-center text-sm sm:text-left" style={{ color: 'var(--k-text-muted)' }}>
-                    {selectedAnswer === undefined
-                      ? '⬆ Pilih jawaban untuk mengaktifkan tombol berikutnya.'
-                      : '✅ Jawaban tersimpan. Lanjutkan saat sudah yakin.'}
-                  </p>
-                  <motion.button
-                    type="button"
-                    whileHover={selectedAnswer !== undefined ? { y: -2 } : undefined}
-                    whileTap={selectedAnswer !== undefined ? { scale: 0.98 } : undefined}
-                    onClick={goToNextQuestion}
-                    disabled={selectedAnswer === undefined}
-                    className="mobile-btn k-btn-primary inline-flex w-full items-center justify-center gap-2 px-7 py-3 text-sm sm:w-auto"
-                  >
-                    {currentIndex === filteredQuestions.length - 1 ? 'Selesai' : 'Selanjutnya'}
-                    <ArrowRight className="size-4" />
-                  </motion.button>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-center text-sm sm:text-left" style={{ color: 'var(--k-text-muted)' }}>
+                      {selectedAnswer === undefined && !isCurrentQuestionFlagged
+                        ? '⬆ Pilih jawaban atau tandai ragu-ragu.'
+                        : '✅ Jawaban tersimpan. Lanjutkan saat sudah yakin.'}
+                    </p>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <motion.button
+                        type="button"
+                        whileHover={{ y: -2 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={toggleQuestionFlag}
+                        className="mobile-btn inline-flex items-center justify-center rounded-lg border px-4 py-3 text-sm font-semibold"
+                        style={{
+                          borderColor: isCurrentQuestionFlagged ? 'var(--k-orange)' : 'var(--k-border)',
+                          background: isCurrentQuestionFlagged ? '#fff7ed' : '#fff',
+                          color: isCurrentQuestionFlagged ? 'var(--k-orange)' : 'var(--k-navy)',
+                        }}
+                      >
+                        {isCurrentQuestionFlagged ? '⚠ Ragu-ragu' : 'Ragu-ragu'}
+                      </motion.button>
+                      <motion.button
+                        type="button"
+                        whileHover={canProceed ? { y: -2 } : undefined}
+                        whileTap={canProceed ? { scale: 0.98 } : undefined}
+                        onClick={goToNextQuestion}
+                        disabled={!canProceed}
+                        className="mobile-btn k-btn-primary inline-flex items-center justify-center gap-2 px-7 py-3 text-sm"
+                      >
+                        {currentIndex === filteredQuestions.length - 1 ? 'Selesai' : 'Selanjutnya'}
+                        <ArrowRight className="size-4" />
+                      </motion.button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-white/80 p-3 shadow-sm">
+                    <div className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: 'var(--k-text-muted)' }}>
+                      <span>Daftar Soal</span>
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Terjawab</span>
+                        <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Ragu</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {filteredQuestions.map((question, index) => {
+                        const isAnswered = answers[question.id] !== undefined
+                        const isFlagged = questionFlags[question.id]
+                        const isCurrent = currentIndex === index
+                        const statusColor = isFlagged ? '#f59e0b' : isAnswered ? '#10b981' : '#e2e8f0'
+                        const textColor = isCurrent ? '#ffffff' : isFlagged ? '#92400e' : isAnswered ? '#065f46' : 'var(--k-navy)'
+                        const bgColor = isCurrent ? 'var(--k-navy)' : isFlagged ? '#fff7ed' : isAnswered ? '#ecfdf5' : '#f8fafc'
+
+                        return (
+                          <button
+                            key={question.id}
+                            type="button"
+                            onClick={() => jumpToQuestion(index)}
+                            className="flex h-10 w-10 items-center justify-center rounded-full border text-sm font-bold transition"
+                            style={{
+                              background: bgColor,
+                              color: textColor,
+                              borderColor: isCurrent ? 'var(--k-orange)' : statusColor,
+                              boxShadow: isCurrent ? '0 0 0 2px rgba(232,130,26,0.16)' : 'none',
+                            }}
+                          >
+                            {index + 1}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.section>
