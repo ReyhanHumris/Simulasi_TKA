@@ -569,7 +569,7 @@ const buildMatematikaLanjutQuestion = (p: number, d: Difficulty, q: number) => {
   }
   if (q === 22) {
     const n22 = 5 + p; const r22 = 2 + m % 2
-    const fact = (n: number): number => n <= 1 ? 1 : n * fact(n - 1)
+    function fact(n: number): number { return n <= 1 ? 1 : n * fact(n - 1) }
     const comb = Math.round(fact(n22) / (fact(r22) * fact(n22 - r22)))
     return { stem: `Banyak cara memilih ${r22} dari ${n22} benda tanpa memperhatikan urutan C(${n22},${r22}) adalah ...`, ...numOpts(comb, seed, comb / 3), explanation: `C(${n22},${r22}) = ${n22}!/(${r22}!·${n22 - r22}!) = ${comb}.` }
   }
@@ -584,7 +584,7 @@ const buildMatematikaLanjutQuestion = (p: number, d: Difficulty, q: number) => {
     return { stem: `P(A) = ${p24}/${den}, P(B) = ${q24p}/${den}, A dan B saling lepas. P(A∪B) = ...`, ...createOptionSet(`${p24 + q24p}/${den}`, [`${p24 * q24p}/${den * den}`, `${Math.abs(p24 - q24p)}/${den}`, `1`], seed), explanation: `P(A∪B) = P(A) + P(B) = ${p24}/${den} + ${q24p}/${den} = ${p24 + q24p}/${den}.` }
   }
   const n25 = 4 + p; const r25 = 2 + m % 3
-  const fact25 = (n: number): number => n <= 1 ? 1 : n * fact25(n - 1)
+  function fact25(n: number): number { return n <= 1 ? 1 : n * fact25(n - 1) }
   const comb25 = Math.round(fact25(n25) / (fact25(r25) * fact25(n25 - r25)))
   return { stem: `Dalam sebuah tim ada ${n25} anggota. Banyak cara memilih ${r25} orang untuk mewakili tim adalah ...`, ...numOpts(comb25, seed, comb25 / 4), explanation: `C(${n25},${r25}) = ${n25}!/(${r25}!·${n25 - r25}!) = ${comb25} cara.` }
 }
