@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import Confetti from 'react-confetti'
 import Swal from 'sweetalert2'
@@ -7,6 +8,7 @@ import {
   ArrowRight,
   BookOpenCheck,
   Brain,
+  Briefcase,
   Calculator,
   CheckCircle2,
   ClipboardList,
@@ -19,8 +21,10 @@ import {
   Sparkles,
   Target,
   Trophy,
+  User,
   type LucideIcon,
 } from 'lucide-react'
+import { useAuth, KELAS_OPTIONS, type Kelas, type CustomQuestion } from './auth'
 
 const SUBJECTS = [
   'Matematika',
@@ -28,8 +32,9 @@ const SUBJECTS = [
   'Bahasa Inggris',
   'TKA Matematika Tingkat Lanjut',
   'Bahasa Inggris Tingkat Lanjut',
+  'PKK',
 ] as const
-const PAKETS = ['Paket 1', 'Paket 2', 'Paket 3', 'Paket 4', 'Paket 5'] as const
+const PAKETS = ['Paket 1', 'Paket 2'] as const
 const DIFFICULTIES = ['Mudah', 'Sedang', 'Sulit'] as const
 const TOTAL_QUESTIONS = 40
 const QUIZ_DURATION_SECONDS = 50 * 60
@@ -106,6 +111,11 @@ const subjectMeta: Record<Subject, { icon: LucideIcon; description: string; metr
     description: 'Grammar lanjut, academic vocabulary, dan reading comprehension.',
     metric: '40 soal · Mapel pilihan',
   },
+  PKK: {
+    icon: Briefcase,
+    description: 'Produk Kreatif dan Kewirausahaan — ide bisnis, analisis pasar, dan produksi.',
+    metric: '40 soal · Mapel kejuruan',
+  },
 }
 
 const difficultyMeta: Record<Difficulty, { tone: string; description: string }> = {
@@ -126,9 +136,6 @@ const difficultyMeta: Record<Difficulty, { tone: string; description: string }> 
 const paketDescriptions: Record<Paket, string> = {
   'Paket 1': 'Drill awal untuk membaca pola dan mengenali tipe soal.',
   'Paket 2': 'Variasi numerik dan konteks yang lebih rapat.',
-  'Paket 3': 'Kombinasi konsep dengan jebakan pilihan jawaban.',
-  'Paket 4': 'Simulasi ritme ujian dengan kasus lebih panjang.',
-  'Paket 5': 'Paket pemantapan sebelum evaluasi akhir.',
 }
 
 const paiContexts = [
@@ -907,6 +914,132 @@ const buildAdvancedEnglishQuestion = (paketNumber: number, difficulty: Difficult
   }
 }
 
+const buildPkkQuestion = (paketNumber: number, difficulty: Difficulty, questionNumber: number) => {
+  const seed = paketNumber * 53 + questionNumber * 11
+  const variant = (questionNumber - 1) % 5
+
+  if (difficulty === 'Mudah') {
+    const templates = [
+      {
+        stem: 'Langkah pertama dalam memulai usaha kreatif adalah ...',
+        correct: 'mengidentifikasi peluang pasar',
+        distractors: ['langsung memproduksi barang', 'meminjam modal besar', 'menunggu pesanan datang'],
+        explanation: 'Sebelum produksi, pelaku usaha harus mengenali kebutuhan dan peluang pasar.',
+      },
+      {
+        stem: 'Analisis SWOT digunakan untuk ...',
+        correct: 'mengevaluasi kekuatan, kelemahan, peluang, dan ancaman usaha',
+        distractors: ['menghitung laba bersih', 'mendesain kemasan produk', 'menentukan harga jual saja'],
+        explanation: 'SWOT (Strengths, Weaknesses, Opportunities, Threats) adalah alat evaluasi bisnis menyeluruh.',
+      },
+      {
+        stem: 'Yang termasuk biaya produksi tetap adalah ...',
+        correct: 'sewa tempat usaha',
+        distractors: ['bahan baku', 'upah lembur', 'biaya pengiriman'],
+        explanation: 'Biaya tetap tidak berubah meskipun jumlah produksi berubah, contohnya sewa tempat.',
+      },
+      {
+        stem: 'Prototype dalam pengembangan produk adalah ...',
+        correct: 'model awal produk untuk diuji sebelum produksi massal',
+        distractors: ['produk jadi siap jual', 'desain kemasan akhir', 'laporan keuangan produk'],
+        explanation: 'Prototype dibuat untuk menguji kelayakan sebelum produksi skala besar.',
+      },
+      {
+        stem: 'Unique Selling Proposition (USP) adalah ...',
+        correct: 'keunikan produk yang membedakan dari pesaing',
+        distractors: ['harga termurah di pasar', 'lokasi usaha strategis', 'jumlah karyawan terbanyak'],
+        explanation: 'USP adalah nilai unik yang menjadi alasan konsumen memilih produk kita.',
+      },
+    ]
+    const t = templates[variant]
+    return {
+      stem: t.stem,
+      ...createOptionSet(t.correct, t.distractors, seed),
+      explanation: t.explanation,
+    }
+  }
+
+  if (difficulty === 'Sedang') {
+    const templates = [
+      {
+        stem: 'Seorang wirausahawan ingin menjual kerajinan tangan secara online. Strategi pemasaran digital yang paling efektif adalah ...',
+        correct: 'memanfaatkan media sosial dan marketplace dengan konten visual menarik',
+        distractors: ['hanya mengandalkan promosi dari mulut ke mulut', 'memasang iklan di koran lokal', 'menunggu pembeli datang ke toko fisik'],
+        explanation: 'Pemasaran digital melalui media sosial dan marketplace menjangkau audiens luas dengan biaya efisien.',
+      },
+      {
+        stem: 'Break Even Point (BEP) tercapai ketika ...',
+        correct: 'total pendapatan sama dengan total biaya',
+        distractors: ['laba mencapai 50%', 'produksi mencapai kapasitas maksimal', 'semua produk terjual habis'],
+        explanation: 'BEP adalah titik di mana usaha tidak untung dan tidak rugi.',
+      },
+      {
+        stem: 'Dalam business model canvas, "value proposition" mengacu pada ...',
+        correct: 'nilai atau manfaat yang ditawarkan kepada pelanggan',
+        distractors: ['daftar pemasok bahan baku', 'struktur organisasi perusahaan', 'jumlah modal yang dibutuhkan'],
+        explanation: 'Value proposition menjelaskan mengapa pelanggan harus memilih produk/jasa kita.',
+      },
+      {
+        stem: 'Packaging produk yang baik harus memenuhi aspek ...',
+        correct: 'fungsional, informatif, dan estetis',
+        distractors: ['hanya menarik secara visual', 'menggunakan bahan termahal', 'berukuran sebesar mungkin'],
+        explanation: 'Kemasan harus melindungi produk (fungsional), memberi info (informatif), dan menarik (estetis).',
+      },
+      {
+        stem: 'Quality control dalam produksi bertujuan untuk ...',
+        correct: 'memastikan produk memenuhi standar kualitas sebelum sampai ke konsumen',
+        distractors: ['mempercepat proses produksi', 'mengurangi jumlah karyawan', 'meningkatkan harga jual'],
+        explanation: 'QC menjamin setiap produk yang keluar dari produksi sesuai standar yang ditetapkan.',
+      },
+    ]
+    const t = templates[variant]
+    return {
+      stem: t.stem,
+      ...createOptionSet(t.correct, t.distractors, seed),
+      explanation: t.explanation,
+    }
+  }
+
+  const templates = [
+    {
+      stem: 'Sebuah UMKM mengalami penurunan penjualan. Setelah analisis, diketahui pesaing menawarkan produk serupa dengan harga lebih rendah. Strategi terbaik adalah ...',
+      correct: 'melakukan diferensiasi produk dengan menambah nilai unik dan meningkatkan branding',
+      distractors: ['menurunkan harga di bawah pesaing walau merugi', 'menghentikan produksi dan beralih usaha', 'menambah jumlah produksi agar harga per unit turun'],
+      explanation: 'Diferensiasi menciptakan persepsi nilai berbeda sehingga tidak terjebak perang harga.',
+    },
+    {
+      stem: 'Dalam lean startup methodology, pendekatan "build-measure-learn" bertujuan ...',
+      correct: 'meminimalkan risiko dengan iterasi cepat berdasarkan feedback pasar',
+      distractors: ['memproduksi sebanyak mungkin sebelum evaluasi', 'menunda peluncuran sampai produk sempurna', 'mengabaikan data pasar dan fokus pada visi founder'],
+      explanation: 'Lean startup menekankan eksperimen cepat dan pembelajaran dari respon pasar nyata.',
+    },
+    {
+      stem: 'Jika biaya tetap Rp5.000.000, biaya variabel per unit Rp20.000, dan harga jual per unit Rp45.000, maka BEP dalam unit adalah ...',
+      correct: '200 unit',
+      distractors: ['250 unit', '150 unit', '100 unit'],
+      explanation: 'BEP = Biaya Tetap / (Harga Jual - Biaya Variabel) = 5.000.000 / (45.000 - 20.000) = 200 unit.',
+    },
+    {
+      stem: 'Intellectual property (HKI) yang melindungi merek dagang disebut ...',
+      correct: 'merek',
+      distractors: ['paten', 'hak cipta', 'desain industri'],
+      explanation: 'Merek melindungi tanda pembeda berupa nama, logo, atau simbol untuk barang/jasa.',
+    },
+    {
+      stem: 'Dalam supply chain management, just-in-time (JIT) inventory bertujuan untuk ...',
+      correct: 'mengurangi biaya penyimpanan dengan memesan bahan sesuai kebutuhan produksi',
+      distractors: ['menimbun stok sebanyak mungkin untuk antisipasi', 'memproduksi tanpa perencanaan terlebih dahulu', 'menunda pengiriman sampai pesanan terkumpul banyak'],
+      explanation: 'JIT meminimalkan inventori berlebih sehingga mengurangi biaya gudang dan waste.',
+    },
+  ]
+  const t = templates[variant]
+  return {
+    stem: `${t.stem} (${questionNumber})`,
+    ...createOptionSet(t.correct, t.distractors, seed + 2),
+    explanation: t.explanation,
+  }
+}
+
 const getQuestionBuilder = (subject: Subject) => {
   switch (subject) {
     case 'Matematika':
@@ -919,6 +1052,8 @@ const getQuestionBuilder = (subject: Subject) => {
       return buildEnglishQuestion
     case 'Bahasa Inggris Tingkat Lanjut':
       return buildAdvancedEnglishQuestion
+    case 'PKK':
+      return buildPkkQuestion
   }
 }
 
@@ -987,6 +1122,10 @@ const screenVariants = {
 }
 
 function App() {
+  const { user, getCustomQuestions, saveSimulationResult } = useAuth()
+  const [studentName, setStudentName] = useState(user?.name || '')
+  const [studentKelas, setStudentKelas] = useState<Kelas | ''>(user?.kelas || '')
+  
   const [screen, setScreen] = useState<Screen>('setup')
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null)
   const [selectedPaket, setSelectedPaket] = useState<Paket | null>(null)
@@ -996,6 +1135,7 @@ function App() {
   const [questionFlags, setQuestionFlags] = useState<Record<string, boolean>>({})
   const [timeLeft, setTimeLeft] = useState(QUIZ_DURATION_SECONDS)
   const [isQuizPaused, setIsQuizPaused] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [sessionQuestions, setSessionQuestions] = useState<Question[]>([])
   const [history, setHistory] = useState<SessionHistoryEntry[]>([])
   const sessionResolvedRef = useRef(false)
@@ -1223,6 +1363,22 @@ function App() {
       }
       return nextHistory
     })
+    
+    // Save to auth context SimulationResult
+    saveSimulationResult({
+      studentName,
+      studentKelas: studentKelas as Kelas,
+      subject,
+      paket,
+      difficulty,
+      score,
+      correct,
+      incorrect,
+      total,
+      answeredCount: Object.keys(answersRef.current).length,
+      status,
+      completedAt: new Date().toISOString(),
+    })
 
     setScreen('result')
 
@@ -1243,15 +1399,56 @@ function App() {
     persistSessionRecord(status)
   }
 
+  // Combine banks
+  const combinedBank = useMemo(() => {
+    const customBank = getCustomQuestions().map((q) => ({
+      id: q.id,
+      subject: q.subject as Subject,
+      paket: q.paket as Paket,
+      difficulty: q.difficulty as Difficulty,
+      stem: q.stem,
+      options: q.options,
+      correctAnswer: q.correctAnswer,
+      explanation: q.explanation,
+    }))
+    return [...questionBank, ...customBank]
+  }, [getCustomQuestions])
+
+  const checkPaketAvailability = (paket: Paket) => {
+    if (!selectedSubject || !selectedDifficulty) return true
+    return combinedBank.some(
+      (q) => q.subject === selectedSubject && q.paket === paket && q.difficulty === selectedDifficulty,
+    )
+  }
+
   const startSimulation = () => {
     if (!isSetupComplete || !selectedSubject || !selectedPaket || !selectedDifficulty) return
+    if (!studentName.trim() || !studentKelas) {
+      void Swal.fire({
+        icon: 'error',
+        title: 'Data Belum Lengkap',
+        text: 'Silakan isi Nama dan pilih Kelas terlebih dahulu.',
+      })
+      return
+    }
+
     sessionResolvedRef.current = false
-    const questions = questionBank.filter(
+    const questions = combinedBank.filter(
       (question) =>
         question.subject === selectedSubject &&
         question.paket === selectedPaket &&
         question.difficulty === selectedDifficulty,
     )
+    
+    if (questions.length === 0) {
+      void Swal.fire({
+        icon: 'error',
+        title: 'Soal Kosong',
+        text: 'Belum ada soal untuk kombinasi ini.',
+      })
+      return
+    }
+
     setSessionQuestions(shuffleArray(questions))
     setAnswers({})
     setQuestionFlags({})
@@ -1342,26 +1539,73 @@ function App() {
 
       {/* ── Kingster Main Header ── */}
       <header className="k-header sticky top-0 z-50">
-        <div className="mobile-header mx-auto flex max-w-7xl flex-col items-start gap-4 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6 sm:py-4 lg:px-8">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <motion.div
-              animate={{ rotate: [0, -4, 4, 0], scale: [1, 1.05, 1] }}
-              transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
-              className="grid size-12 shrink-0 place-items-center rounded-lg"
-              style={{ background: 'var(--k-navy)', color: '#fff' }}
-            >
-              <BookOpenCheck className="size-6" />
-            </motion.div>
-            <div>
-              <p className="k-section-label" style={{ color: 'var(--k-orange)', fontSize: '0.6rem' }}>CBT Readiness Lab</p>
-              <h1 className="text-base font-bold leading-tight sm:text-lg" style={{ fontFamily: 'Poppins, sans-serif', color: 'var(--k-navy)', marginTop: '1px' }}>
-                Simulasi TKA MAKN Ende
-              </h1>
+        <div className="mobile-header mx-auto flex max-w-7xl flex-col gap-4 px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
+          <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <motion.div
+                animate={{ rotate: [0, -4, 4, 0], scale: [1, 1.05, 1] }}
+                transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+                className="grid size-12 shrink-0 place-items-center rounded-lg"
+                style={{ background: 'var(--k-navy)', color: '#fff' }}
+              >
+                <BookOpenCheck className="size-6" />
+              </motion.div>
+              <div>
+                <p className="k-section-label" style={{ color: 'var(--k-orange)', fontSize: '0.6rem' }}>CBT Readiness Lab</p>
+                <h1 className="text-base font-bold leading-tight sm:text-lg" style={{ fontFamily: 'Poppins, sans-serif', color: 'var(--k-navy)', marginTop: '1px' }}>
+                  Simulasi TKA MAKN Ende
+                </h1>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-4 sm:justify-center">
+              <div className="hidden md:flex items-center gap-6">
+                <Link to="/" className="text-slate-700 transition hover:text-slate-900">Beranda</Link>
+                <Link to="/login" className="text-slate-700 transition hover:text-slate-900">Login</Link>
+                <Link to="/register" className="text-slate-700 transition hover:text-slate-900">Daftar</Link>
+                <Link to="/app" className="text-slate-700 transition hover:text-slate-900">Quiz</Link>
+              </div>
+
+              <div className="hidden md:block">
+                <Link
+                  to="/login"
+                  className="inline-flex items-center rounded-full border border-slate-300 bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                >
+                  Login
+                </Link>
+              </div>
+
+              <button
+                type="button"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 md:hidden"
+                onClick={() => setMobileMenuOpen((open) => !open)}
+                aria-expanded={mobileMenuOpen}
+                aria-label="Toggle menu"
+              >
+                <span className="material-symbols-outlined">menu</span>
+              </button>
             </div>
           </div>
 
-          {/* Stats badges */}
+          {mobileMenuOpen ? (
+            <div className="md:hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex flex-col gap-3">
+                <Link to="/" className="rounded-2xl px-4 py-3 text-slate-700 hover:bg-slate-100" onClick={() => setMobileMenuOpen(false)}>
+                  Beranda
+                </Link>
+                <Link to="/login" className="rounded-2xl px-4 py-3 text-slate-700 hover:bg-slate-100" onClick={() => setMobileMenuOpen(false)}>
+                  Login
+                </Link>
+                <Link to="/register" className="rounded-2xl px-4 py-3 text-slate-700 hover:bg-slate-100" onClick={() => setMobileMenuOpen(false)}>
+                  Daftar
+                </Link>
+                <Link to="/app" className="rounded-2xl px-4 py-3 text-slate-700 hover:bg-slate-100" onClick={() => setMobileMenuOpen(false)}>
+                  Quiz
+                </Link>
+              </div>
+            </div>
+          ) : null}
+
           <div className="hidden gap-2 sm:flex">
             {[
               { value: '3', label: 'Mapel' },
@@ -1468,6 +1712,48 @@ function App() {
 
               {/* ── Form Panel Right ── */}
               <div className="mobile-card k-card k-card-accent space-y-6 rounded-xl p-4 sm:p-7">
+                {/* 0. Identitas Siswa */}
+                <div>
+                  <div className="mb-1 flex items-center justify-between">
+                    <h3 className="font-bold" style={{ fontFamily: 'Poppins, sans-serif', color: 'var(--k-navy)', fontSize: '1rem' }}>
+                      Identitas Siswa
+                    </h3>
+                    <span className="k-section-label text-[0.62rem]">Data</span>
+                  </div>
+                  <div className="mb-4 h-0.5 w-8 rounded-full" style={{ background: 'var(--k-orange)' }} />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-xs font-bold" style={{ color: 'var(--k-navy)' }}>Nama Lengkap</label>
+                      <input 
+                        type="text" 
+                        value={studentName}
+                        onChange={(e) => setStudentName(e.target.value)}
+                        placeholder="Masukkan nama"
+                        className="w-full rounded-lg p-2 text-sm outline-none transition-all"
+                        style={{ border: '2px solid var(--k-border)', background: '#fff' }}
+                        onFocus={(e) => e.target.style.borderColor = 'var(--k-orange)'}
+                        onBlur={(e) => e.target.style.borderColor = 'var(--k-border)'}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-bold" style={{ color: 'var(--k-navy)' }}>Kelas</label>
+                      <select
+                        value={studentKelas}
+                        onChange={(e) => setStudentKelas(e.target.value as Kelas)}
+                        className="w-full rounded-lg p-2 text-sm outline-none transition-all"
+                        style={{ border: '2px solid var(--k-border)', background: '#fff' }}
+                        onFocus={(e) => e.target.style.borderColor = 'var(--k-orange)'}
+                        onBlur={(e) => e.target.style.borderColor = 'var(--k-border)'}
+                      >
+                        <option value="" disabled>Pilih Kelas</option>
+                        {KELAS_OPTIONS.map(k => (
+                          <option key={k} value={k}>{k}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
                 {/* 1. Mata Pelajaran */}
                 <div>
                   <div className="mb-1 flex items-center justify-between">
@@ -1530,17 +1816,20 @@ function App() {
                     <span className="k-section-label text-[0.62rem]">Set</span>
                   </div>
                   <div className="mb-4 h-0.5 w-8 rounded-full" style={{ background: 'var(--k-orange)' }} />
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
                     {PAKETS.map((paket) => {
                       const isSelected = selectedPaket === paket
+                      const isAvailable = checkPaketAvailability(paket)
+                      
                       return (
                         <motion.button
                           key={paket}
                           type="button"
-                          whileHover={{ y: -2 }}
-                          whileTap={{ scale: 0.97 }}
+                          disabled={!isAvailable}
+                          whileHover={isAvailable ? { y: -2 } : {}}
+                          whileTap={isAvailable ? { scale: 0.97 } : {}}
                           onClick={() => setSelectedPaket(paket)}
-                          className="mobile-pill rounded-lg py-3 text-center text-xs font-bold transition"
+                          className="mobile-pill rounded-lg py-3 text-center text-xs font-bold transition flex flex-col items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                           style={{
                             fontFamily: 'Poppins, sans-serif',
                             background: isSelected ? 'var(--k-navy)' : '#eef3fa',
@@ -1548,7 +1837,8 @@ function App() {
                             border: isSelected ? '2px solid var(--k-orange)' : '2px solid transparent',
                           }}
                         >
-                          {paket.replace('Paket ', 'P')}
+                          <span>{paket}</span>
+                          {!isAvailable && <span className="text-[0.6rem] font-normal opacity-70">Belum tersedia</span>}
                         </motion.button>
                       )
                     })}
@@ -1612,7 +1902,7 @@ function App() {
           )}
 
           {/* ════════════════════════════════════════
-              QUIZ SCREEN
+              halaman quiz
           ════════════════════════════════════════ */}
           {screen === 'quiz' && currentQuestion && (
             <motion.section
